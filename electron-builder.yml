@@ -1,0 +1,35 @@
+appId: com.sorcer.filmster
+directories:
+  output: release
+  buildResources: src/assets
+files:
+  - out/**/*
+  # All dependencies are bundled by electron-vite
+  - '!node_modules/**/*'
+asar: true
+npmRebuild: false
+extraResources:
+  - from: src/assets
+    to: assets
+  - from: bin/ffprobe.exe
+    to: ffprobe.exe
+  - from: bin/ffmpeg-LICENSE.txt
+    to: ffmpeg-LICENSE.txt
+  - from: bin/ffmpeg.exe
+    to: ffmpeg.exe
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+win:
+  target: nsis
+  icon: src/assets/icon.png
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  artifactName: ${productName}-${version} Setup.${ext}

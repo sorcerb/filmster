@@ -1,0 +1,52 @@
+{
+  "name": "filmster",
+  "productName": "filmster",
+  "version": "1.0.25",
+  "description": "Filmster - Film and TV show manager",
+  "main": "./out/main/main.js",
+  "scripts": {
+    "postinstall": "node scripts/fetch-ffmpeg.mjs",
+    "fetch-ffmpeg": "node scripts/fetch-ffmpeg.mjs",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "package": "electron-vite build && electron-builder --win --dir",
+    "make": "electron-vite build && electron-builder --win",
+    "release": "node scripts/release.mjs",
+    "premake": "npm version patch -m \"%s\"",
+    "lint": "eslint --ext .ts,.tsx ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.71.0",
+    "@typescript-eslint/parser": "^8.71.0",
+    "autoprefixer": "^10.4.20",
+    "electron": "33.2.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "eslint": "^8.0.1",
+    "eslint-plugin-import": "^2.25.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.9.3",
+    "vite": "^5.0.12"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Sorcer",
+    "email": "sorcer.boo@gmail.com"
+  },
+  "license": "GPL-3.0-or-later",
+  "repository": "github:sorcerb/filmster",
+  "dependencies": {
+    "@fontsource/open-sans": "^5.1.0",
+    "electron-context-menu": "^4.1.2",
+    "electron-store": "8.2.0",
+    "lucide-react": "^0.544.0",
+    "postcss": "^8.4.49",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1"
+  }
+}
