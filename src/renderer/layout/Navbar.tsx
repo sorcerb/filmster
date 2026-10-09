@@ -1,11 +1,14 @@
-import { CircleUserRound, Home, Settings, LoaderCircle, RefreshCcw } from 'lucide-react';
+import { CircleArrowDown, CircleUserRound, Home, Settings, LoaderCircle, RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useI18n } from '../i18n/I18nProvider';
+import { useUpdateStatus } from '../hooks/useUpdateStatus';
+import { SCROLL_TO_UPDATES } from '../components/UpdateSettings';
 
 const Navbar = () => {
     const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(false);
+    const updateStatus = useUpdateStatus();
 
     const handleScanClick = async () => {
         setIsLoading(true);
@@ -17,6 +20,17 @@ const Navbar = () => {
             setIsLoading(false);
         }
     };
+
+    // Shown only while there is a new version: found, downloading or ready to install
+    const updateTitle = (() => {
+        const version = updateStatus?.version ?? '';
+        switch (updateStatus?.state) {
+            case 'available': return t('settings.updatesAvailable', { version });
+            case 'downloading': return t('settings.updatesDownloading', { percent: updateStatus.percent ?? 0 });
+            case 'downloaded': return t('settings.updatesReady', { version });
+            default: return null;
+        }
+    })();
 
     const menuItems = [
         { id: 'movies', label: t('nav.movies'), to: '/' },
@@ -49,6 +63,17 @@ const Navbar = () => {
                 ))}
             </ul>
             <div className="flex items-center gap-3">
+                {updateTitle && (
+                    <NavLink
+                        to="/settings"
+                        state={SCROLL_TO_UPDATES}
+                        className={`transition-colors ${updateStatus?.state === 'downloaded' ? 'text-green-500 hover:text-green-400' : 'text-blue-500 hover:text-blue-400'}`}
+                        aria-label={updateTitle}
+                        title={updateTitle}
+                    >
+                        <CircleArrowDown className={`h-6 w-6 ${updateStatus?.state === 'downloading' ? 'animate-pulse' : ''}`} />
+                    </NavLink>
+                )}
                 <button
                     className="text-neutral-400 hover:text-neutral-200 transition-colors disabled:opacity-50"
                     onClick={handleScanClick}

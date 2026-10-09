@@ -27,6 +27,8 @@ interface ScanCache {
 }
 
 const SCAN_CACHE_VERSION = 1;
+// Bumped when the name parser starts reading more from file names: cached files are re-parsed, keeping when they were added
+const PARSER_VERSION = 2;
 let scanCache: ScanCache | null = null;
 // Files that appeared since the previous scan
 let addedFiles: MediaFileModel[] = [];
@@ -85,6 +87,7 @@ const createMediaFile = (fullPath: string, baseFolder: string, parentFolder: str
         year: parsed.year,
         season: parsed.season,
         episode: parsed.episode,
+        episodeTitle: parsed.episodeTitle,
         resolution: parsed.resolution,
         quality: parsed.quality,
         fileSize: stats.size,
@@ -141,7 +144,7 @@ const readDirectory = (dirPath: string, baseFolder: string, parentFolder: string
 // the rest costs one stat() per directory. Returns true when something changed.
 const scanLibraryFolder = (rootPath: string, patterns: RegexPatterns, force: boolean): boolean => {
     const cache = loadScanCache();
-    const patternsKey = JSON.stringify(patterns);
+    const patternsKey = getPatternsKey(patterns);
     const reparse = cache.patternsKey !== patternsKey;
 
     const visited = new Set<string>();
@@ -181,9 +184,11 @@ const scanLibraryFolder = (rootPath: string, patterns: RegexPatterns, force: boo
     return changed;
 };
 
+const getPatternsKey = (patterns: RegexPatterns) => `${PARSER_VERSION}:${JSON.stringify(patterns)}`;
+
 // Marks the cache as built with the given patterns (after all library folders were walked)
 const commitPatterns = (patterns: RegexPatterns) => {
-    const patternsKey = JSON.stringify(patterns);
+    const patternsKey = getPatternsKey(patterns);
     if (scanCache && scanCache.patternsKey !== patternsKey) {
         scanCache.patternsKey = patternsKey;
         scanCacheWriter.schedule();

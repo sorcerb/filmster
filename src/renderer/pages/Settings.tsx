@@ -8,6 +8,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { isLanguage, LANGUAGES, MessageKey } from '../../shared/i18n';
 import NetworkSettings from '../components/NetworkSettings';
 import GenreIconSettings from '../components/GenreIconSettings';
+import UpdateSettings from '../components/UpdateSettings';
 import { isWebClient } from '../webApi';
 
 const PLAYER_OPTIONS: { value: PlayerType; label: MessageKey; description: MessageKey }[] = [
@@ -20,6 +21,7 @@ const Settings = () => {
     const [libraryFolders, setLibraryFolders] = useState<LibraryFolderModel[]>([]);
     const [autoScanEnabled, setAutoScanEnabledState] = useState<boolean>(false);
     const [playerType, setPlayerTypeState] = useState<PlayerType>('external');
+    const [autoSkipIntroDefault, setAutoSkipIntroDefaultState] = useState(false);
 
     const loadData = async () => {
         try {
@@ -44,6 +46,11 @@ const Settings = () => {
                 setPlayerTypeState(await window.electron.getPlayerType());
             } catch (error) {
                 console.error('Error reading player setting:', error);
+            }
+            try {
+                setAutoSkipIntroDefaultState(await window.electron.getAutoSkipIntroDefault());
+            } catch (error) {
+                console.error('Error reading skip intro setting:', error);
             }
         };
         loadSettings();
@@ -76,6 +83,17 @@ const Settings = () => {
         } catch (error) {
             console.error('Failed to update player setting:', error);
             setPlayerTypeState(previous);
+        }
+    };
+
+    const handleAutoSkipIntroDefaultToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.checked;
+        setAutoSkipIntroDefaultState(value);
+        try {
+            await window.electron.setAutoSkipIntroDefault(value);
+        } catch (error) {
+            console.error('Failed to update skip intro setting:', error);
+            setAutoSkipIntroDefaultState(!value);
         }
     };
 
@@ -188,6 +206,19 @@ const Settings = () => {
                     {t(PLAYER_OPTIONS.find(option => option.value === playerType)?.description ?? 'settings.playerExternalDescription')}
                     {' '}{t('settings.playerCtrlClickHint')}
                 </p>
+                <div className="h-12 mt-2 flex items-center justify-between">
+                    <span className="text-neutral-300 text-sm">{t('settings.autoSkipIntro')}</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={autoSkipIntroDefault}
+                            onChange={handleAutoSkipIntroDefaultToggle}
+                        />
+                        <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <p className="text-neutral-400">{t('settings.autoSkipIntroDescription')}</p>
             </div>
 
             <GenreIconSettings />
@@ -224,6 +255,8 @@ const Settings = () => {
                 </div>
                 <p className="text-neutral-400">{t('settings.dataFolderDescription')}</p>
             </div>
+
+            <UpdateSettings />
         </>
     );
 }

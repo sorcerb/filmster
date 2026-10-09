@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9b23b5"/><stop offset="1" stop-color="#5a1d9e"/>
+    </linearGradient>
+    <mask id="holes">
+      <rect width="256" height="256" fill="#fff"/>
+      <g fill="#000">
+        <rect x="80" y="58" width="14" height="14" rx="3"/>
+        <rect x="80" y="86" width="14" height="14" rx="3"/>
+        <rect x="80" y="114" width="14" height="14" rx="3"/>
+        <rect x="80" y="142" width="14" height="14" rx="3"/>
+        <rect x="80" y="170" width="14" height="14" rx="3"/>
+        <rect x="80" y="198" width="14" height="14" rx="3"/>
+        <rect x="130" y="60" width="52" height="24" rx="4"/>
+        <rect x="130" y="124" width="30" height="18" rx="4"/>
+      </g>
+    </mask>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <g fill="#fff" mask="url(#holes)">
+    <rect x="70" y="44" width="54" height="178" rx="8"/>
+    <rect x="70" y="44" width="126" height="54" rx="8"/>
+    <rect x="70" y="114" width="102" height="42" rx="8"/>
+  </g>
+</svg>

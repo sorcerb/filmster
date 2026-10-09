@@ -207,13 +207,16 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
                                                                     return (
                                                                         <div className="bg-neutral-700 rounded overflow-hidden hover:bg-neutral-600 transition-colors">
                                                                             <div className="p-3">
-                                                                                <div className="flex justify-between items-center">
-                                                                                    <div>
+                                                                                <div className="flex justify-between items-center gap-2">
+                                                                                    <div className="min-w-0 text-left">
                                                                                         <h4 className="font-medium text-white">
                                                                                             {episode.episode ? t('details.episode', { episode: episode.episode.toString().padStart(2, '0') }) : t('details.unknownEpisode')}
                                                                                         </h4>
+                                                                                        {episode.episodeTitle && (
+                                                                                            <p className="text-sm text-neutral-400 truncate" title={episode.episodeTitle}>{episode.episodeTitle}</p>
+                                                                                        )}
                                                                                     </div>
-                                                                                    <Play className="h-5 w-5" />
+                                                                                    <Play className="h-5 w-5 shrink-0" />
                                                                                 </div>
                                                                             </div>
                                                                             <div className="h-1 bg-neutral-600 w-full">

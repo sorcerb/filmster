@@ -40,3 +40,9 @@ export const setCachedDuration = (filePath: string, duration: number): void => {
 };
 
 export const getDurationCache = (): Record<string, number> => _cache;
+
+export const pruneDurationCache = (keepPaths: Set<string>): void => {
+    const stale = Object.keys(_cache).filter(filePath => !keepPaths.has(filePath));
+    stale.forEach(filePath => delete _cache[filePath]);
+    if (stale.length) writer.schedule();
+};

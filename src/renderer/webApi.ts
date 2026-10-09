@@ -137,6 +137,12 @@ const webApi: ElectronAPI = {
     getMediaInfo: (filePath) => call('get-media-info', filePath),
     getKeyframes: (filePath, time) => call('get-keyframes', filePath, time),
     stopTranscode: () => call('stop-transcode'),
+    getEpisodeMarkers: (filePath) => call('get-episode-markers', filePath),
+    onEpisodeMarkersUpdated: subscribe('episode-markers-updated'),
+    getAutoSkipIntro: (seriesName) => call('get-auto-skip-intro', seriesName),
+    setAutoSkipIntro: (seriesName, enabled) => call('set-auto-skip-intro', seriesName, enabled),
+    getAutoSkipIntroDefault: notAvailable,
+    setAutoSkipIntroDefault: notAvailable,
     // Cues come as events
     startSubtitles: (subtitleRequest) => call('start-subtitles', subtitleRequest),
     stopSubtitles: (id) => call('stop-subtitles', id),
@@ -145,6 +151,14 @@ const webApi: ElectronAPI = {
 
     getWebServerStatus: notAvailable,
     setWebServerSettings: notAvailable,
+
+    getAutoUpdate: notAvailable,
+    setAutoUpdate: notAvailable,
+    getUpdateStatus: notAvailable,
+    checkForUpdates: notAvailable,
+    downloadUpdate: notAvailable,
+    installUpdate: notAvailable,
+    onUpdateStatus: () => () => undefined,
 };
 
 if (isWebClient) {

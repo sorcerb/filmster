@@ -5,6 +5,9 @@ import './ipcHandlers';
 import { MEDIA_SCHEME, POSTER_SCHEME, registerMediaProtocol } from './mediaProtocol';
 import { applyWebServerSettings } from './webServer';
 import { enqueueMissingMetadata } from './autoMetadata';
+import './episodeMarkers';
+import { initGarbageCollector } from './garbageCollector';
+import { initAutoUpdate } from './updater';
 import * as packageJson from '../../package.json';
 import { getLanguage } from '../renderer/stores/LanguageStore';
 import { translate } from '../shared/i18n';
@@ -54,6 +57,9 @@ const createWindow = () => {
   mainWindow.maximize()
 
   mainWindow.setTitle(`Filmster ${appVersion}`);
+  // index.html has no <title>, so on load or reload Electron would replace the window title
+  // with the page address ("index.html" in the installed app, "localhost:5173" in dev)
+  mainWindow.on('page-title-updated', (event) => event.preventDefault());
 
   // and load the index.html of the app.
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -84,6 +90,8 @@ app.on('ready', () => {
   createWindow();
   applyWebServerSettings();
   enqueueMissingMetadata();
+  initAutoUpdate();
+  initGarbageCollector();
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

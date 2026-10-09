@@ -181,3 +181,21 @@ export function getPosterPath(metadataId: string, isPreview = false): string | n
     const posterFile = getPosterIndex().get(posterName.toLowerCase());
     return posterFile ? path.join(getPostersFolder(), posterFile) : null;
 }
+
+// Metadata (<id>.json) and poster (<id>.jpg, <id>_preview.jpg...) file names in the metadata folder
+export function listMetadataFiles(): string[] {
+    const folder = getMetadataFolder();
+    if (!fs.existsSync(folder)) return [];
+    return fs.readdirSync(folder).filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return ext === '.json' || IMAGE_EXTENSIONS.includes(ext);
+    });
+}
+
+export function removeMetadataFile(fileName: string) {
+    fs.unlinkSync(path.join(getMetadataFolder(), fileName));
+    const name = path.basename(fileName, path.extname(fileName)).toLowerCase();
+    metadataCache.delete(name);
+    metadataCache.delete(name.replace(/_preview$/, ''));
+    posterIndex = null;
+}

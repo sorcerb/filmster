@@ -75,6 +75,9 @@ const REMOTE_CHANNELS: Record<string, ArgsCheck | true> = {
     'get-media-info': ([filePath]) => isLibraryFile(filePath),
     'get-keyframes': ([filePath]) => isLibraryFile(filePath),
     'stop-transcode': true,
+    'get-episode-markers': ([filePath]) => isLibraryFile(filePath),
+    'get-auto-skip-intro': true,
+    'set-auto-skip-intro': ([seriesName, enabled]) => typeof seriesName === 'string' && typeof enabled === 'boolean',
     'start-subtitles': async ([request]: [SubtitleRequest]) => {
         if (!isLibraryFile(request?.videoPath)) return false;
         if (!request.track?.filePath) return true;

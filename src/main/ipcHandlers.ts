@@ -26,6 +26,8 @@ import { getGenreIcons, setGenreIcons } from '../renderer/stores/GenreIconsStore
 import { GenreIcons } from '../renderer/models/GenreIcons';
 import { Language, translate } from '../shared/i18n';
 import { updateAutoScan } from './autoScan';
+import { getAutoUpdate, setAutoUpdate } from '../renderer/stores/AutoUpdateStore';
+import { checkForUpdates, downloadUpdate, getUpdateStatus, installUpdate, updateAutoUpdate } from './updater';
 import { enqueueMissingMetadata } from './autoMetadata';
 import { flushJsonWriters } from './jsonWriter';
 import { WatchProgress } from '../renderer/models/WatchProgressModel';
@@ -126,6 +128,18 @@ handle('set-auto-scan', (_client, enabled: boolean) => {
     updateAutoScan(enabled);
     return true;
 });
+
+handle('get-auto-update', () => getAutoUpdate());
+
+handle('set-auto-update', (_client, enabled: boolean) => {
+    setAutoUpdate(enabled);
+    updateAutoUpdate(enabled);
+});
+
+handle('get-update-status', () => getUpdateStatus());
+handle('check-for-updates', () => checkForUpdates());
+handle('download-update', () => downloadUpdate());
+handle('install-update', () => installUpdate());
 
 handle('get-player-type', () => getPlayerType());
 

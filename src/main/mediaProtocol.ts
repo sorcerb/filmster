@@ -12,10 +12,10 @@ import { handle, LOCAL_CLIENT_ID } from './rpc';
 export const MEDIA_SCHEME = 'media';
 export const POSTER_SCHEME = 'poster';
 
-const ffmpegPath = app.isPackaged
+export const ffmpegPath = app.isPackaged
     ? path.join(process.resourcesPath, 'ffmpeg.exe')
     : path.join(__dirname, '../../bin/ffmpeg.exe');
-const ffprobePath = app.isPackaged
+export const ffprobePath = app.isPackaged
     ? path.join(process.resourcesPath, 'ffprobe.exe')
     : path.join(__dirname, '../../bin/ffprobe.exe');
 

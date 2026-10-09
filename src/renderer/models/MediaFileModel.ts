@@ -29,6 +29,8 @@ export interface MediaFileModel {
     year?: number;
     season?: number;
     episode?: number;
+    // Episode title from the file name, if it has one
+    episodeTitle?: string;
     resolution?: string;
     quality?: string;
     fileSize?: number;

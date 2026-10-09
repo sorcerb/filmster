@@ -6,6 +6,8 @@ export interface ParsedMediaName {
     year?: number;
     season?: number;
     episode?: number;
+    // "Show.S01E01.The Burger.mkv" -> "The Burger"
+    episodeTitle?: string;
     resolution?: string;
     quality?: string;
 }
@@ -163,10 +165,13 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
     let season: number | undefined;
     let episode: number | undefined;
     let episodeOnly = false;
+    // Where the episode number ends in the file name: the episode title may follow it
+    let episodeEnd: number | undefined;
     const se = first(p.seasonEpisode, fileName);
     if (se && se[1] && se[2]) {
         season = toNumber(se, 1);
         episode = toNumber(se, 2);
+        episodeEnd = se.index + se[0].length;
     } else {
         // "01.mkv", "E05 - Title" - trusted only inside a season folder or when the name is just the number,
         // otherwise "1. Madagascar (2005)" or "21 Jump Street" would become episodes
@@ -176,6 +181,7 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
             episode = parseInt(value(ep), 10);
             season = seasonFromFolders(folders, p) ?? 1;
             episodeOnly = true;
+            episodeEnd = ep.index + ep[0].length;
         }
     }
 
@@ -204,12 +210,16 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
         }
     }
 
+    // Same cleanup as a title: up to the year / release tags ("S01E02.1080p.WEB-DL" has none)
+    const episodeTitle = episodeEnd !== undefined ? cleanTitle(fileName.slice(episodeEnd), p) : '';
+
     return {
         parsedName: parsedName || fileName,
         type: isSeries ? MediaType.Series : MediaType.Movie,
         year,
         season,
         episode,
+        episodeTitle: episodeTitle || undefined,
         resolution: parseResolution(fileName, folders, p),
         quality: parseQuality(fileName, folders, p)
     };

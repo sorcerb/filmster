@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef, useCallback, useMemo, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Play, Pause, Rewind, FastForward, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Minimize, Captions } from 'lucide-react';
+import { X, Play, Pause, Rewind, FastForward, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Minimize, Captions, ChevronsRight } from 'lucide-react';
 import { WatchProgress } from '../models/WatchProgressModel';
 import { MediaFileModel, MediaType } from '../models/MediaFileModel';
 import { AudioTrackInfo, MediaInfo, SubtitleTrackInfo } from '../models/MediaInfo';
+import { EpisodeMarkers } from '../models/EpisodeMarkers';
 import { useSubtitles } from '../hooks/useSubtitles';
 import { findMatchingTrack, getAudioSignature, getSubtitleSignature } from '../utils/trackMatching';
 import { useI18n } from '../i18n/I18nProvider';
 import { MessageKey, TranslateParams } from '../../shared/i18n';
 import { isWebClient, MEDIA_URL_BASE } from '../webApi';
+import { compareGroupMembers, getMediaTitle } from '../utils/mediaGroups';
 
 const SEEK_STEP = 5;
 const VOLUME_STEP = 0.05;
@@ -24,6 +26,11 @@ const PREVIEW_STEP = 5;
 const PREVIEW_DEBOUNCE = 100;
 // Displayed width of the preview frame (ffmpeg renders it at this width too, see mediaProtocol.ts)
 const PREVIEW_WIDTH = 240;
+// Next episode card: counts down this long from the start of the credits, then the next episode plays.
+// Without known credits it shows for this long before the end, where the next episode starts anyway
+const NEXT_EPISODE_COUNTDOWN = 10;
+// Position changes up to this long between time updates are playback, longer ones are seeks
+const MAX_PLAYBACK_STEP = 2;
 
 // Mouse side buttons (MouseEvent.button)
 const MOUSE_BACK = 3;
@@ -97,9 +104,9 @@ const getFolder = (filePath: string) => filePath.slice(0, filePath.lastIndexOf('
 
 // User group: its files; series: episodes of the same show; movies: files in the same folder
 const getPlaylist = (item: MediaFileModel, files: MediaFileModel[]): MediaFileModel[] => {
-    const playlist = item.groupId
-        ? files.filter(f => f.groupId === item.groupId)
-        : item.type === MediaType.Series
+    // Same order as on the group's details page
+    if (item.groupId) return files.filter(f => f.groupId === item.groupId).sort(compareGroupMembers);
+    const playlist = item.type === MediaType.Series
         ? files.filter(f => f.type === MediaType.Series && !f.groupId && f.parsedName === item.parsedName)
         : files.filter(f => !f.groupId && getFolder(f.fullPath) === getFolder(item.fullPath));
     return playlist.sort((a, b) =>
@@ -114,20 +121,30 @@ const getTrackPreferenceKey = (item: MediaFileModel): string =>
 
 const formatItemTitle = (item: MediaFileModel): string => {
     if (item.type === MediaType.Series && item.episode) {
-        return `${item.parsedName} — S${String(item.season ?? 1).padStart(2, '0')}E${String(item.episode).padStart(2, '0')}`;
+        const episode = `S${String(item.season ?? 1).padStart(2, '0')}E${String(item.episode).padStart(2, '0')}`;
+        return [item.parsedName, episode, item.episodeTitle].filter(Boolean).join(' - ');
     }
     return item.fileName || item.parsedName;
 };
 
+// Outside groups the series name is the same for all, so only the episode; movies go by the found title
+const formatPlaylistEntry = (item: MediaFileModel): string => {
+    if (item.type === MediaType.Series && item.episode) {
+        const episode = `S${String(item.season ?? 1).padStart(2, '0')}E${String(item.episode).padStart(2, '0')}`;
+        return [item.groupId && getMediaTitle(item), episode, item.episodeTitle].filter(Boolean).join(' - ');
+    }
+    return item.metadata?.title || item.fileName || item.parsedName;
+};
+
 const formatTrack = (track: AudioTrackInfo, t: (key: MessageKey, params?: TranslateParams) => string): string => {
     const parts = [track.language?.toUpperCase(), track.title].filter(Boolean);
-    const label = parts.length ? parts.join(' — ') : t('player.track', { number: track.index + 1 });
+    const label = parts.length ? parts.join(' - ') : t('player.track', { number: track.index + 1 });
     return `${label} (${track.codec.toUpperCase()}${track.channels ? ` ${track.channels}ch` : ''})`;
 };
 
 const formatSubtitle = (track: SubtitleTrackInfo, index: number, t: (key: MessageKey, params?: TranslateParams) => string): string => {
     const parts = [track.language?.toUpperCase(), track.title].filter(Boolean);
-    return parts.length ? parts.join(' — ') : t('player.track', { number: index + 1 });
+    return parts.length ? parts.join(' - ') : t('player.track', { number: index + 1 });
 };
 
 const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObject<HTMLDivElement | null> }) => {
@@ -136,6 +153,10 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
     const [mediaItem, setMediaItem] = useState<MediaFileModel | null>(null);
     const [prevItem, setPrevItem] = useState<MediaFileModel | null>(null);
     const [nextItem, setNextItem] = useState<MediaFileModel | null>(null);
+    // Files the previous / next buttons go through and the index of this one in them
+    const [playlist, setPlaylist] = useState<MediaFileModel[]>([]);
+    const [playlistIndex, setPlaylistIndex] = useState(-1);
+    const [playlistOpen, setPlaylistOpen] = useState(false);
     const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -162,6 +183,11 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
     const [preview, setPreview] = useState<{ time: number; url: string } | null>(null);
     // Width / height of the preview frames; known once the first one loads, then frames still loading show as a dark box
     const [previewAspect, setPreviewAspect] = useState<number | null>(null);
+    // Series only: intro and credits (null while the episode is analyzed), whether to skip the intro by itself
+    const [markers, setMarkers] = useState<EpisodeMarkers | null>(null);
+    const [autoSkipIntro, setAutoSkipIntro] = useState(false);
+    // The next episode card was closed
+    const [nextDismissed, setNextDismissed] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -183,6 +209,10 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
     // Preview frame object URLs by time; the latest requested time
     const previewCacheRef = useRef(new Map<number, string>());
     const previewWantedRef = useRef<number | null>(null);
+    // Position at the previous time update: tells playback from seeks
+    const lastTimeRef = useRef(0);
+    const playlistMenuRef = useRef<HTMLDivElement>(null);
+    const playlistCurrentRef = useRef<HTMLButtonElement>(null);
 
     const tracks = mediaInfo?.audioTracks ?? [];
     const encodeVideo = useMemo(() => needsVideoEncode(mediaInfo), [mediaInfo]);
@@ -199,16 +229,21 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                 if (!id) return;
                 const item = await window.electron.getMediaFile(id);
                 if (!item) return;
-                const [info, progress, allFiles, trackPreference] = await Promise.all([
+                const isSeries = item.type === MediaType.Series;
+                const [info, progress, allFiles, trackPreference, episodeMarkers, skipIntro] = await Promise.all([
                     window.electron.getMediaInfo(item.fullPath),
                     window.electron.getWatchProgress(item.fullPath),
                     window.electron.getMediaFiles(),
                     window.electron.getTrackPreference(getTrackPreferenceKey(item)),
+                    isSeries ? window.electron.getEpisodeMarkers(item.fullPath) : null,
+                    isSeries ? window.electron.getAutoSkipIntro(item.parsedName) : false,
                 ]);
                 const playlist = getPlaylist(item, allFiles);
                 const index = playlist.findIndex(f => f.id === item.id);
                 setPrevItem(index > 0 ? playlist[index - 1] : null);
                 setNextItem(index >= 0 && index < playlist.length - 1 ? playlist[index + 1] : null);
+                setPlaylist(playlist);
+                setPlaylistIndex(index);
                 // The tracks chosen before (e.g. in the previous episode) if this file has them, otherwise its default ones
                 const savedAudio = trackPreference?.audio && info
                     ? findMatchingTrack(trackPreference.audio, info.audioTracks.map(getAudioSignature))
@@ -228,7 +263,10 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                 setSubtitleIndex(savedSubtitle ?? -1);
                 setStreamStart(position);
                 setCurrentTime(position);
+                setMarkers(episodeMarkers);
+                setAutoSkipIntro(skipIntro);
                 positionRef.current = position;
+                lastTimeRef.current = position;
                 pendingSeekRef.current = position || null;
                 setMediaItem(item);
             } catch (err) {
@@ -240,6 +278,14 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
         load();
         return () => { window.electron.stopTranscode(); };
     }, [id]);
+
+    // Analysis of the episode finished while it plays
+    useEffect(() => {
+        if (mediaItem?.type !== MediaType.Series) return;
+        return window.electron.onEpisodeMarkersUpdated((filePath, updated) => {
+            if (filePath === mediaItem.fullPath) setMarkers(updated);
+        });
+    }, [mediaItem]);
 
     // Logical playback position in the file, independent of mode
     const getTime = useCallback((): number => {
@@ -329,6 +375,50 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
         showOsd(`${delta > 0 ? '+' : '−'}${Math.abs(delta)}s  ${formatTime(Math.max(0, target))}`);
         revealControls();
     }, [getTime, seekTo, showOsd, revealControls]);
+
+    // Replace history entry so Back returns to the page the player was opened from
+    const playItem = useCallback((item: MediaFileModel | null) => {
+        if (!item) return;
+        navigate(`/play/${encodeURIComponent(item.id)}`, { replace: true });
+    }, [navigate]);
+
+    const skipIntro = useCallback(() => {
+        if (!markers?.intro) return;
+        seekTo(markers.intro.end);
+        showOsd(t('player.introSkipped'));
+    }, [markers, seekTo, showOsd, t]);
+
+    const toggleAutoSkipIntro = useCallback(() => {
+        if (!mediaItem) return;
+        const enabled = !autoSkipIntro;
+        setAutoSkipIntro(enabled);
+        window.electron.setAutoSkipIntro(mediaItem.parsedName, enabled);
+        showOsd(t(enabled ? 'player.autoSkipIntroOn' : 'player.autoSkipIntroOff'));
+    }, [mediaItem, autoSkipIntro, showOsd, t]);
+
+    // Credits known: the next episode plays NEXT_EPISODE_COUNTDOWN seconds into them; otherwise it plays at the end (onEnded)
+    const creditsStart = markers?.creditsStart ?? null;
+    const nextEpisodeAt = creditsStart !== null ? creditsStart + NEXT_EPISODE_COUNTDOWN : duration;
+    const nextCardFrom = creditsStart ?? duration - NEXT_EPISODE_COUNTDOWN;
+    // The last second is left alone: skipping it gains nothing
+    const isInIntro = useCallback((time: number) =>
+        !!markers?.intro && time >= markers.intro.start && time < markers.intro.end - 1, [markers]);
+    const inIntro = isInIntro(currentTime);
+
+    // Called on every time update with the new position: skips the intro (also after a seek into it: to watch it,
+    // auto skip is turned off), plays the next episode when playback goes on into the credits (a seek there is left alone)
+    const onPlaybackTime = useCallback((time: number) => {
+        const previous = lastTimeRef.current;
+        lastTimeRef.current = time;
+        const isPlayback = time >= previous && time - previous <= MAX_PLAYBACK_STEP;
+
+        if (autoSkipIntro && isInIntro(time)) skipIntro();
+
+        if (time < nextCardFrom) setNextDismissed(false);
+        if (creditsStart !== null && nextItem && !nextDismissed && isPlayback && previous < nextEpisodeAt && time >= nextEpisodeAt) {
+            playItem(nextItem);
+        }
+    }, [isInIntro, autoSkipIntro, skipIntro, creditsStart, nextCardFrom, nextEpisodeAt, nextItem, nextDismissed, playItem]);
 
     const changeAudioTrack = useCallback(async (index: number) => {
         if (!mediaItem) return;
@@ -420,12 +510,6 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
         else fullscreenRef.current?.requestFullscreen();
     }, [fullscreenRef]);
 
-    // Replace history entry so Back returns to the page the player was opened from
-    const playItem = useCallback((item: MediaFileModel | null) => {
-        if (!item) return;
-        navigate(`/play/${encodeURIComponent(item.id)}`, { replace: true });
-    }, [navigate]);
-
     const goBack = useCallback(() => {
         if (document.fullscreenElement) document.exitFullscreen();
         navigate(-1);
@@ -440,6 +524,11 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
     // Keyboard shortcuts
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
+            if (playlistOpen && e.code === 'Escape') {
+                e.preventDefault();
+                setPlaylistOpen(false);
+                return;
+            }
             if (e.target instanceof HTMLSelectElement) return;
             if (e.target instanceof HTMLInputElement && e.target.type !== 'range') return;
             switch (e.code) {
@@ -477,6 +566,10 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                     if (!e.shiftKey) return;
                     playItem(e.code === 'KeyN' ? nextItem : prevItem);
                     break;
+                case 'KeyS':
+                    if (!inIntro) return;
+                    skipIntro();
+                    break;
                 case 'Escape':
                     if (!document.fullscreenElement) goBack();
                     break;
@@ -488,7 +581,18 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [togglePlay, seekBy, changeVolume, toggleFullscreen, toggleMute, goBack, revealControls, volume, playItem, prevItem, nextItem]);
+    }, [togglePlay, seekBy, changeVolume, toggleFullscreen, toggleMute, goBack, revealControls, volume, playItem, prevItem, nextItem, inIntro, skipIntro, playlistOpen]);
+
+    // Playlist menu: closes on a click outside, opens scrolled to the current file
+    useEffect(() => {
+        if (!playlistOpen) return;
+        playlistCurrentRef.current?.scrollIntoView({ block: 'center' });
+        const onPointerDown = (e: PointerEvent) => {
+            if (!playlistMenuRef.current?.contains(e.target as Node)) setPlaylistOpen(false);
+        };
+        window.addEventListener('pointerdown', onPointerDown);
+        return () => window.removeEventListener('pointerdown', onPointerDown);
+    }, [playlistOpen]);
 
     // Mouse wheel = volume, mouse back/forward buttons = seek
     useEffect(() => {
@@ -496,6 +600,8 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
         if (!container) return;
 
         const onWheel = (e: WheelEvent) => {
+            // Scrolls the playlist menu
+            if (playlistMenuRef.current?.contains(e.target as Node)) return;
             e.preventDefault();
             const current = videoRef.current?.volume ?? volume;
             changeVolume(current + (e.deltaY < 0 ? VOLUME_STEP : -VOLUME_STEP));
@@ -590,7 +696,14 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
     }
 
     const progressPercent = duration ? (currentTime / duration) * 100 : 0;
-    const controlsVisible = showControls || !isPlaying;
+    const isSeries = mediaItem.type === MediaType.Series;
+    const showNextCard = isSeries && !!nextItem && !nextDismissed && duration > 0 && currentTime >= nextCardFrom;
+    const introStatus = !markers
+        ? t('player.introSearching')
+        : markers.intro
+            ? t('player.introFound', { start: formatTime(markers.intro.start), end: formatTime(markers.intro.end) })
+            : t('player.introNotFound');
+    const controlsVisible = showControls || !isPlaying || playlistOpen;
     const src = isTranscoding
         ? toMediaUrl(mediaItem.fullPath, { start: streamStart, audio: audioTrack, encodeVideo, nonce: streamNonce })
         : toMediaUrl(mediaItem.fullPath);
@@ -620,6 +733,7 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                     if (pendingSeekRef.current !== null) return;
                     positionRef.current = getTime();
                     setCurrentTime(positionRef.current);
+                    onPlaybackTime(positionRef.current);
                 }}
                 onPlay={() => { playIntentRef.current = true; setIsPlaying(true); revealControls(); }}
                 onPause={() => {
@@ -686,6 +800,48 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                         >
                             {t('player.openExternal')}
                         </button>
+                    )}
+                </div>
+            )}
+
+            {/* Above the controls, shown even when they are hidden */}
+            {(inIntro || showNextCard) && (
+                <div className="absolute right-4 sm:right-8 bottom-28 z-10">
+                    {inIntro ? (
+                        <button
+                            onClick={skipIntro}
+                            className="px-5 py-3 bg-black/70 hover:bg-white hover:text-black text-white text-lg font-medium rounded border border-neutral-400 transition-colors"
+                            title={t('player.skipIntroKey')}
+                            tabIndex={-1}
+                        >
+                            {t('player.skipIntro')}
+                        </button>
+                    ) : nextItem && (
+                        <div className="flex items-stretch bg-black/70 rounded border border-neutral-400 text-white max-w-sm overflow-hidden">
+                            <button
+                                onClick={() => playItem(nextItem)}
+                                className="group relative flex-1 min-w-0 text-left px-4 py-2.5 hover:bg-white hover:text-black transition-colors"
+                                tabIndex={-1}
+                            >
+                                <div className="text-sm text-neutral-300 group-hover:text-neutral-600">
+                                    {t('player.nextEpisodeIn', { seconds: Math.max(0, Math.ceil(nextEpisodeAt - currentTime)) })}
+                                </div>
+                                <div className="text-lg font-medium truncate">{formatItemTitle(nextItem)}</div>
+                                {/* Countdown: fills up until the next episode starts */}
+                                <div
+                                    className="absolute left-0 bottom-0 h-0.5 bg-white/70 group-hover:bg-black/40 transition-[width] duration-500 ease-linear"
+                                    style={{ width: `${Math.min(100, Math.max(0, 1 - (nextEpisodeAt - currentTime) / NEXT_EPISODE_COUNTDOWN) * 100)}%` }}
+                                />
+                            </button>
+                            <button
+                                onClick={() => setNextDismissed(true)}
+                                className="px-3 border-l border-neutral-600 text-neutral-300 hover:text-white hover:bg-white/10 transition-colors"
+                                title={t('player.nextEpisodeHide')}
+                                tabIndex={-1}
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
                     )}
                 </div>
             )}
@@ -757,6 +913,38 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                     >
                         <SkipForward className="h-5 w-5" />
                     </button>
+                    {playlist.length > 1 && playlistIndex >= 0 && (
+                        <div ref={playlistMenuRef} className="relative">
+                            <button
+                                onClick={() => setPlaylistOpen(open => !open)}
+                                className={`px-1 text-sm tabular-nums hover:text-blue-400 ${playlistOpen ? 'text-blue-400' : 'text-neutral-400'}`}
+                                title={t('player.playlist')}
+                                tabIndex={-1}
+                            >
+                                {playlistIndex + 1} / {playlist.length}
+                            </button>
+                            {playlistOpen && (
+                                <div className="absolute bottom-full left-0 mb-3 w-72 max-w-[80vw] max-h-72 overflow-y-auto py-1 bg-black/90 border border-neutral-600 rounded shadow-lg">
+                                    {playlist.map((item, index) => (
+                                        <button
+                                            key={item.id}
+                                            ref={index === playlistIndex ? playlistCurrentRef : undefined}
+                                            onClick={() => {
+                                                setPlaylistOpen(false);
+                                                if (index !== playlistIndex) playItem(item);
+                                            }}
+                                            className={`w-full flex gap-3 px-3 py-1.5 text-left text-sm hover:bg-neutral-700 ${index === playlistIndex ? 'text-blue-400' : 'text-white'}`}
+                                            title={item.fileName}
+                                            tabIndex={-1}
+                                        >
+                                            <span className="w-6 shrink-0 text-right tabular-nums text-neutral-500">{index + 1}</span>
+                                            <span className="truncate">{formatPlaylistEntry(item)}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <button onClick={() => seekBy(-SEEK_STEP)} className="hidden sm:block p-2 hover:text-blue-400" title={t('player.seekBack', { seconds: SEEK_STEP })} tabIndex={-1}>
                         <Rewind className="h-5 w-5" />
                     </button>
@@ -768,6 +956,17 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
                         <span className="hidden sm:inline text-neutral-400"> / -{formatTime(duration - currentTime)}</span>
                     </span>
                     <div className="flex-1" />
+                    {isSeries && (
+                        <button
+                            onClick={toggleAutoSkipIntro}
+                            className={`flex items-center gap-1 px-2 py-1 text-sm rounded border transition-colors ${autoSkipIntro ? 'border-blue-500 text-blue-400' : 'border-neutral-600 text-neutral-300 hover:text-white'}`}
+                            title={`${t('player.autoSkipIntro')}\n${introStatus}`}
+                            tabIndex={-1}
+                        >
+                            <ChevronsRight className="h-4 w-4" />
+                            <span className="hidden sm:inline">{t('player.introLabel')}</span>
+                        </button>
+                    )}
                     {tracks.length > 1 && (
                         <select
                             value={audioTrack}

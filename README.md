@@ -1,4 +1,6 @@
-# Filmster
+<p align="center"><img src="src/assets/icon.png" width="128" height="128" alt="Filmster icon"></p>
+
+<h1 align="center">Filmster</h1>
 
 A desktop library for your movies and TV shows on Windows. Point it at the folders with your video files and get a poster wall with descriptions and genres, a built-in player that remembers where you stopped, and the same library in a browser on any device in your home network.
 
@@ -14,11 +16,12 @@ A desktop library for your movies and TV shows on Windows. Point it at the folde
 - **Built-in player** - exact seeking, audio track selection (AC3/DTS are converted on the fly), subtitles from the file or next to it, resume from the last position. Or open files in the default Windows player: MPC-HC history counts as progress
 - **Network access** - open the library in a browser on another computer, phone or TV in the same network, optionally with a PIN; can be added to a phone's home screen
 - **Profile** - watched movies and episodes, hours, favorite genres
-- 16 interface languages
+- **Updates** - new versions are downloaded in the background and installed when you close the app; can be turned off to check by hand
+- Multilingual interface
 
 ## Install
 
-Download the installer (`filmster-<version> Setup.exe`) from the [Releases](../../releases) page and run it. Then in **Settings**:
+Download the installer (`Filmster-Setup-<version>.exe`) from the [Releases](../../releases) page and run it. Then in **Settings**:
 
 1. Add the folders with your movies and series.
 2. Enter a [Kinopoisk API Unofficial](https://kinopoiskapiunofficial.tech) key and/or a [TMDB](https://www.themoviedb.org/settings/api) API key to load posters and descriptions.

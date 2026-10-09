@@ -12,10 +12,12 @@ import { MpcWatchEntry } from '../renderer/stores/MpcHistoryService';
 import { MediaInfo, SubtitleCue, SubtitleRequest } from '../renderer/models/MediaInfo';
 import { PlayerType } from '../renderer/models/PlayerType';
 import { TrackPreference } from '../renderer/models/TrackPreference';
+import { EpisodeMarkers } from '../renderer/models/EpisodeMarkers';
 import { GenreIcons } from '../renderer/models/GenreIcons';
 import { Language } from '../shared/i18n';
 import type { WebServerSettings } from '../renderer/stores/WebServerStore';
 import type { WebServerStatus } from '../main/webServer';
+import type { UpdateStatus } from '../main/updater';
 
 // One ipcRenderer listener per channel, fanned out to subscribers (every poster card subscribes)
 const subscribe = <T extends unknown[]>(channel: string) => {
@@ -87,6 +89,12 @@ const api = {
   getMediaInfo: (filePath: string): Promise<MediaInfo | null> => ipcRenderer.invoke('get-media-info', filePath),
   getKeyframes: (filePath: string, time: number): Promise<number[]> => ipcRenderer.invoke('get-keyframes', filePath, time),
   stopTranscode: (): Promise<void> => ipcRenderer.invoke('stop-transcode'),
+  getEpisodeMarkers: (filePath: string): Promise<EpisodeMarkers | null> => ipcRenderer.invoke('get-episode-markers', filePath),
+  onEpisodeMarkersUpdated: subscribe<[filePath: string, markers: EpisodeMarkers]>('episode-markers-updated'),
+  getAutoSkipIntro: (seriesName: string): Promise<boolean> => ipcRenderer.invoke('get-auto-skip-intro', seriesName),
+  setAutoSkipIntro: (seriesName: string, enabled: boolean): Promise<void> => ipcRenderer.invoke('set-auto-skip-intro', seriesName, enabled),
+  getAutoSkipIntroDefault: (): Promise<boolean> => ipcRenderer.invoke('get-auto-skip-intro-default'),
+  setAutoSkipIntroDefault: (enabled: boolean): Promise<void> => ipcRenderer.invoke('set-auto-skip-intro-default', enabled),
   startSubtitles: (request: SubtitleRequest): Promise<void> => ipcRenderer.invoke('start-subtitles', request),
   stopSubtitles: (id: number): Promise<void> => ipcRenderer.invoke('stop-subtitles', id),
   onSubtitleCues: subscribe<[id: number, cues: SubtitleCue[]]>('subtitle-cues'),
@@ -94,6 +102,14 @@ const api = {
 
   getWebServerStatus: (): Promise<WebServerStatus> => ipcRenderer.invoke('get-web-server-status'),
   setWebServerSettings: (settings: WebServerSettings): Promise<WebServerStatus> => ipcRenderer.invoke('set-web-server-settings', settings),
+
+  getAutoUpdate: (): Promise<boolean> => ipcRenderer.invoke('get-auto-update'),
+  setAutoUpdate: (enabled: boolean): Promise<void> => ipcRenderer.invoke('set-auto-update', enabled),
+  getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke('get-update-status'),
+  checkForUpdates: (): Promise<UpdateStatus> => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: (): Promise<void> => ipcRenderer.invoke('download-update'),
+  installUpdate: (): Promise<void> => ipcRenderer.invoke('install-update'),
+  onUpdateStatus: subscribe<[status: UpdateStatus]>('update-status'),
 }
 
 contextBridge.exposeInMainWorld('electron', api);

@@ -32,4 +32,9 @@ nsis:
   perMachine: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  artifactName: ${productName}-${version} Setup.${ext}
+  artifactName: Filmster-Setup-${version}.${ext}
+# Where electron-updater looks for latest.yml (main/updater.ts); the release workflow uploads it
+publish:
+  provider: github
+  owner: sorcerb
+  repo: filmster

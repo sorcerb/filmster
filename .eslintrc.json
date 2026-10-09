@@ -16,6 +16,8 @@
   "rules": {
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/no-unused-vars": "off",
-    "no-unused-vars": "off"
+    "no-unused-vars": "off",
+    // electron-vite import suffixes
+    "import/no-unresolved": ["error", { "ignore": ["\\?nodeWorker$"] }]
   }
 }
