@@ -86,9 +86,12 @@ const webApi: ElectronAPI = {
 
     getApiSettings: notAvailable,
     updateApiSettings: notAvailable,
-    getDefaultMetadataProvider: () => call('get-default-metadata-provider'),
+    getMetadataProviders: () => call('get-metadata-providers'),
+    getFilmPosters: (film) => call('metadata-posters', film),
     searchMetadata: (provider, keyword) => call('metadata-search', provider, keyword),
     findMetadataFilm: (parsedName, year) => call('metadata-find-film', parsedName, year),
+    getFilmDetails: (film) => call('metadata-film-details', film),
+    getNews: (provider, section) => call('metadata-news', provider, section),
 
     showFolderInExplorer: notAvailable,
     openDataFolder: notAvailable,
@@ -105,7 +108,7 @@ const webApi: ElectronAPI = {
     getRegexPatterns: notAvailable,
     updateRegexPatterns: notAvailable,
 
-    saveMetadata: (metadata, selectedMovie) => call('save-metadata', metadata, selectedMovie),
+    saveMetadata: (metadata, selectedMovie, customPoster) => call('save-metadata', metadata, selectedMovie, customPoster),
     loadMetadata: (metadataId) => call('load-metadata', metadataId),
     openFile: notAvailable,
 
@@ -123,6 +126,8 @@ const webApi: ElectronAPI = {
     setLanguage: async (language) => { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); },
     getGenreIcons: () => call('get-genre-icons'),
     setGenreIcons: notAvailable,
+    getCustomLinks: () => call('get-custom-links'),
+    setCustomLinks: notAvailable,
     onConvertToCyrillic: () => undefined,
     removeConvertListener: () => undefined,
 

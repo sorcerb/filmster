@@ -56,9 +56,19 @@ export const ApiSettings = ({ onSave }: ApiSettingsProps) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="apiKeyTheMovieDb" className="block text-sm font-medium text-neutral-300 mb-1">
-                    {t('api.tmdbKey')}
-                </label>
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <label htmlFor="apiKeyTheMovieDb" className="block text-sm font-medium text-neutral-300">
+                        {t('api.tmdbKey')}
+                    </label>
+                    <a
+                        href="https://www.themoviedb.org/settings/api"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                    >
+                        themoviedb.org
+                    </a>
+                </div>
                 <input
                     id="apiKeyTheMovieDb"
                     name="apiKeyTheMovieDb"
@@ -70,9 +80,19 @@ export const ApiSettings = ({ onSave }: ApiSettingsProps) => {
             </div>
 
             <div>
-                <label htmlFor="apiKeyKinopoisk" className="block text-sm font-medium text-neutral-300 mb-1">
-                    {t('api.kinopoiskKey')}
-                </label>
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <label htmlFor="apiKeyKinopoisk" className="block text-sm font-medium text-neutral-300">
+                        {t('api.kinopoiskKey')}
+                    </label>
+                    <a
+                        href="https://kinopoiskapiunofficial.tech/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                    >
+                        kinopoiskapiunofficial.tech
+                    </a>
+                </div>
                 <input
                     id="apiKeyKinopoisk"
                     name="apiKeyKinopoisk"

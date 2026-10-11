@@ -1,9 +1,10 @@
-import { CircleArrowDown, CircleUserRound, Home, Settings, LoaderCircle, RefreshCcw } from 'lucide-react';
+import { CircleArrowDown, CircleUserRound, Settings, LoaderCircle, RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useI18n } from '../i18n/I18nProvider';
 import { useUpdateStatus } from '../hooks/useUpdateStatus';
 import { SCROLL_TO_UPDATES } from '../components/UpdateSettings';
+import logo from '../../assets/icon.svg';
 
 const Navbar = () => {
     const { t } = useI18n();
@@ -33,25 +34,25 @@ const Navbar = () => {
     })();
 
     const menuItems = [
-        { id: 'movies', label: t('nav.movies'), to: '/' },
-        { id: 'files', label: t('nav.files'), to: '/files' },
+        { id: 'library', label: t('home.title'), to: '/' },
+        { id: 'news', label: t('nav.news'), to: '/news' },
     ];
 
     return (
         <div className="fixed top-0 w-full bg-neutral-800 border-b border-neutral-700 text-white flex items-center justify-between px-3 md:px-6 py-1 z-50">
-            <div className="flex items-center gap-3">
-                <NavLink
-                    to="/"
-                    className="text-neutral-400 hover:text-neutral-200 transition-colors"
-                >
-                    <Home className="h-6 w-6" />
-                </NavLink>
-            </div>
+            <NavLink
+                to="/"
+                className="flex items-center gap-2 text-lg font-semibold tracking-wide text-neutral-200 hover:text-white transition-colors select-none"
+            >
+                <img src={logo} alt="" className="h-6 w-6" />
+                Filmster
+            </NavLink>
             <ul className="flex items-center gap-2">
                 {menuItems.map(({ id, label, to }) => (
                     <li key={id} className="flex items-center">
                         <NavLink
                             to={to}
+                            end
                             className={({ isActive }) =>
                                 `flex items-center text-md px-2 md:px-4 py-1 rounded-md ${isActive ? 'text-white' : 'text-neutral-400 hover:text-neutral-200'
                                 }`

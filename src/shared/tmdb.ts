@@ -1,6 +1,6 @@
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { latinToCyrillic } from '../renderer/utils/transliteration';
-import { FetchFn, MetadataApiError } from './metadataApi';
+import { FetchFn, MetadataApiError, NewsItem, NewsSection, PosterImage } from './metadataApi';
 
 // The Movie DB API v3: https://developer.themoviedb.org/reference
 const API_URL = 'https://api.themoviedb.org/3';
@@ -138,4 +138,51 @@ export const searchTmdbFilms = async (keyword: string, language: string, apiKey:
         if (films.length) return preferYear(films, getTrailingYear(fullQuery));
     }
     return [];
+};
+
+// All posters of the title: in the app language, English and without text (TMDB orders them by votes)
+export const fetchTmdbPosters = async (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<PosterImage[]> => {
+    const mediaType: MediaType = film.type === 'FILM' ? 'movie' : 'tv';
+    const imageLanguage = [...new Set([language.split('-')[0], 'en', 'null'])].join(',');
+    const data = await request(`/${mediaType}/${film.filmId}/images`, { include_image_language: imageLanguage }, apiKey, fetchFn);
+    return (data?.posters ?? []).map((poster: { file_path: string }) => ({
+        url: `${IMAGE_URL}/w780${poster.file_path}`,
+        previewUrl: `${IMAGE_URL}/w185${poster.file_path}`,
+    }));
+};
+
+// Full details of a title (genres and countries, which list items don't all have)
+export const fetchTmdbDetails = (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult | null> =>
+    fetchDetails(film.type === 'FILM' ? 'movie' : 'tv', String(film.filmId), language, apiKey, fetchFn);
+
+const addDays = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+// Popular titles of the week; the upcoming list of TMDB is mostly films already out somewhere,
+// so upcoming is the most awaited films of the next three months instead
+const getNewsList = (section: NewsSection): { path: string; mediaType: MediaType; params?: Record<string, string> } => {
+    switch (section) {
+        case 'trending': return { path: '/trending/movie/week', mediaType: 'movie' };
+        case 'nowPlaying': return { path: '/movie/now_playing', mediaType: 'movie' };
+        case 'upcoming': return {
+            path: '/discover/movie',
+            mediaType: 'movie',
+            params: { 'primary_release_date.gte': addDays(1), 'primary_release_date.lte': addDays(90), sort_by: 'popularity.desc' },
+        };
+        case 'series': return { path: '/trending/tv/week', mediaType: 'tv' };
+    }
+};
+
+// First page (20 titles) of the list; titles without a poster are skipped
+export const fetchTmdbNews = async (section: NewsSection, language: string, apiKey: string, fetchFn: FetchFn): Promise<NewsItem[]> => {
+    const { path, mediaType, params } = getNewsList(section);
+    const data = await request(path, { language, page: '1', include_adult: 'false', ...params }, apiKey, fetchFn);
+    const results: any[] = (data?.results ?? []).filter((item: any) => item.poster_path);
+    const genres = await getGenres(language, apiKey, fetchFn);
+    const items: NewsItem[] = results.map(item => ({
+        ...toSearchResult(item, mediaType, genres),
+        releaseDate: (mediaType === 'movie' ? item.release_date : item.first_air_date) || undefined,
+    }));
+    return section === 'upcoming'
+        ? items.sort((a, b) => (a.releaseDate ?? '').localeCompare(b.releaseDate ?? ''))
+        : items;
 };

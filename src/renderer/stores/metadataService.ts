@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { MovieMetadata } from '../../renderer/models/MediaMetadata';
 import { MovieSearchResult } from '../../renderer/models/MovieSearchResult';
+import { CustomPoster } from '../../shared/metadataApi';
 
 let _metadataFolder: string | null = null;
 let _postersFolder: string | null = null;
@@ -45,6 +46,8 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
     fs.writeFileSync(outputPath, buffer);
 }
 
+const decodeDataUrl = (dataUrl: string): Buffer => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+
 export interface SaveMetadataResult {
     metadataPath: string;
     posterPaths: string[];
@@ -53,7 +56,8 @@ export interface SaveMetadataResult {
 
 export async function saveMetadata(
     metadata: MovieMetadata,
-    selectedMovie: MovieSearchResult | null
+    selectedMovie: MovieSearchResult | null,
+    customPoster: CustomPoster | null = null
 ): Promise<SaveMetadataResult> {
 
     ensureDirectoriesExist();
@@ -66,7 +70,21 @@ export async function saveMetadata(
 
     const result: SaveMetadataResult = { metadataPath, posterPaths: [] };
 
-    if (selectedMovie) {
+    if (customPoster) {
+        try {
+            const baseName = metadata.id;
+            const posterPath = path.join(getPostersFolder(), `${baseName}.jpg`);
+            const previewPath = path.join(getPostersFolder(), `${baseName}_preview.jpg`);
+            removePosters(baseName);
+            removePosters(`${baseName}_preview`);
+            fs.writeFileSync(posterPath, decodeDataUrl(customPoster.poster));
+            fs.writeFileSync(previewPath, decodeDataUrl(customPoster.preview));
+            result.posterPaths.push(posterPath, previewPath);
+        } catch (error) {
+            console.error('Error saving own poster:', error);
+            result.posterError = String(error);
+        }
+    } else if (selectedMovie) {
         try {
             const baseName = metadata.id;
             
@@ -89,7 +107,7 @@ export async function saveMetadata(
         }
     }
     metadataCache.delete(metadata.id.toLowerCase());
-    if (selectedMovie) posterIndex = null;
+    if (selectedMovie || customPoster) posterIndex = null;
     return result;
 }
 

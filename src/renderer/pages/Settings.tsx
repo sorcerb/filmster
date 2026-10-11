@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 import EditorFolderRow from '../components/EditorFolderRow';
 import RegexSettings from '../components/RegexSettings';
 import { ApiSettings } from '../components/ApiSettings';
@@ -8,6 +10,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { isLanguage, LANGUAGES, MessageKey } from '../../shared/i18n';
 import NetworkSettings from '../components/NetworkSettings';
 import GenreIconSettings from '../components/GenreIconSettings';
+import CustomLinkSettings from '../components/CustomLinkSettings';
 import UpdateSettings from '../components/UpdateSettings';
 import { isWebClient } from '../webApi';
 
@@ -15,6 +18,8 @@ const PLAYER_OPTIONS: { value: PlayerType; label: MessageKey; description: Messa
     { value: 'external', label: 'settings.playerExternal', description: 'settings.playerExternalDescription' },
     { value: 'internal', label: 'settings.playerInternal', description: 'settings.playerInternalDescription' },
 ];
+
+const FOOTER_LINK_CLASS = 'underline hover:text-neutral-300 transition-colors';
 
 const Settings = () => {
     const { t, language, setLanguage } = useI18n();
@@ -223,11 +228,17 @@ const Settings = () => {
 
             <GenreIconSettings />
 
+            <CustomLinkSettings />
+
             <NetworkSettings />
 
             <div className="mt-2 p-4 text-xs max-w-4xl bg-neutral-800 rounded-xl mx-auto">
                 <div className="h-12 flex items-center justify-between">
                     <h2 className="text-neutral-100 font-bold">{t('settings.regexPatterns')}</h2>
+                    <Link to="/files" className="flex items-center gap-1 text-blue-500 hover:text-blue-400">
+                        {t('nav.files')}
+                        <ArrowRight className="h-4 w-4" />
+                    </Link>
                 </div>
                 <div className="mt-2 p-4 bg-neutral-800 rounded-xl">
                     <RegexSettings />
@@ -257,6 +268,27 @@ const Settings = () => {
             </div>
 
             <UpdateSettings />
+
+            <div className="mt-6 max-w-4xl mx-auto text-center text-xs text-neutral-500">
+                <p>
+                    <a href="https://github.com/sorcerb/filmster/blob/main/LICENSE" target="_blank" rel="noreferrer" className={FOOTER_LINK_CLASS}>GPL-3.0</a>
+                    , © 2025-2026 Sorcer.{' '}
+                    {t('settings.licenseFfmpeg').split(/(\{ffmpeg\}|\{builder\})/).map((part, index) =>
+                        part === '{ffmpeg}' ? <a key={index} href="https://ffmpeg.org/" target="_blank" rel="noreferrer" className={FOOTER_LINK_CLASS}>FFmpeg</a>
+                        : part === '{builder}' ? <a key={index} href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noreferrer" className={FOOTER_LINK_CLASS}>gyan.dev</a>
+                        : part)}
+                </p>
+            </div>
+
+            <a
+                href="https://github.com/sorcerb/filmster"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 mb-2 mx-auto w-fit flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+            >
+                https://github.com/sorcerb/filmster
+                <ExternalLink className="h-3 w-3" />
+            </a>
         </>
     );
 }

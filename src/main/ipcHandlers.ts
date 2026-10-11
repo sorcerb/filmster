@@ -16,14 +16,16 @@ import { existsSync } from 'fs';
 import { ApiSettings } from '../renderer/models/ApiSettings';
 import { getApiSettings, updateApiSettings } from '../renderer/stores/ApiSettingsStore';
 import { getPatterns, scanMediaFile } from './scanFiles';
-import { findFilm, getDefaultMetadataProvider, searchFilms } from './metadataProviders';
-import { MetadataProvider } from '../shared/metadataApi';
+import { findFilm, getFilmDetails, getFilmPosters, getNews, getProviderOrder, searchFilms } from './metadataProviders';
+import { CustomPoster, MetadataProvider, NewsItem, NewsSection, PosterImage } from '../shared/metadataApi';
 import { getAutoScan, setAutoScan } from '../renderer/stores/AutoScanStore';
 import { getPlayerType, setPlayerType } from '../renderer/stores/PlayerSettingsStore';
 import { PlayerType } from '../renderer/models/PlayerType';
 import { getLanguage, setLanguage } from '../renderer/stores/LanguageStore';
 import { getGenreIcons, setGenreIcons } from '../renderer/stores/GenreIconsStore';
 import { GenreIcons } from '../renderer/models/GenreIcons';
+import { getCustomLinks, setCustomLinks } from '../renderer/stores/CustomLinksStore';
+import { CustomLink } from '../renderer/models/CustomLink';
 import { Language, translate } from '../shared/i18n';
 import { updateAutoScan } from './autoScan';
 import { getAutoUpdate, setAutoUpdate } from '../renderer/stores/AutoUpdateStore';
@@ -70,13 +72,19 @@ handle('update-api-settings', (_client, settings: ApiSettings): void => {
     enqueueMissingMetadata();
 });
 
-handle('get-default-metadata-provider', (): MetadataProvider => getDefaultMetadataProvider());
+handle('get-metadata-providers', (): MetadataProvider[] => getProviderOrder());
+
+handle('metadata-posters', (_client, film: MovieSearchResult): Promise<PosterImage[]> => getFilmPosters(film));
 
 handle('metadata-search', (_client, provider: MetadataProvider, keyword: string): Promise<MovieSearchResult[]> =>
     searchFilms(provider, keyword));
 
 handle('metadata-find-film', (_client, parsedName: string, year: number | undefined): Promise<MovieSearchResult | null> =>
     findFilm(parsedName, year));
+
+handle('metadata-film-details', (_client, film: MovieSearchResult): Promise<MovieSearchResult | null> => getFilmDetails(film));
+
+handle('metadata-news', (_client, provider: MetadataProvider, section: NewsSection): Promise<NewsItem[]> => getNews(provider, section));
 
 
 handle('show-folder-in-explorer', async (_client, folderPath) => {
@@ -153,6 +161,10 @@ handle('get-genre-icons', () => getGenreIcons());
 
 handle('set-genre-icons', (_client, icons: GenreIcons) => setGenreIcons(icons));
 
+handle('get-custom-links', () => getCustomLinks());
+
+handle('set-custom-links', (_client, links: CustomLink[]) => setCustomLinks(links));
+
 handle('get-media-files', async () => getMediaFiles());
 
 handle('get-media-file', async (_client, id: string): Promise<MediaFileModel | null> => getMediaFile(id));
@@ -163,7 +175,8 @@ handle('rename-media-group', (_client, groupId: string, name: string): void => r
 
 handle('remove-media-group', (_client, groupId: string): void => removeMediaGroup(groupId));
 
-handle('save-metadata', async (_client, metadata: MovieMetadata, selectedMovie: MovieSearchResult | null): Promise<SaveMetadataResult> => saveMetadata(metadata, selectedMovie));
+handle('save-metadata', async (_client, metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, customPoster?: CustomPoster | null): Promise<SaveMetadataResult> =>
+    saveMetadata(metadata, selectedMovie, customPoster ?? null));
 
 handle('load-metadata', async (_client, metadataId: string): Promise<MovieMetadata | null> => loadMetadata(metadataId));
 

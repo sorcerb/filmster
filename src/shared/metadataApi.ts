@@ -6,6 +6,33 @@ export type MetadataProvider = 'tmdb' | 'kinopoisk';
 
 export const METADATA_PROVIDERS: MetadataProvider[] = ['tmdb', 'kinopoisk'];
 
+// Lists of the "New releases" page
+export type NewsSection = 'trending' | 'nowPlaying' | 'upcoming' | 'series';
+
+export const NEWS_SECTIONS: NewsSection[] = ['trending', 'nowPlaying', 'upcoming', 'series'];
+
+// A title in a news list: the search result plus the release date (YYYY-MM-DD) where the provider has it
+export interface NewsItem extends MovieSearchResult {
+    releaseDate?: string;
+}
+
+// One of the film's posters, as listed by the provider
+export interface PosterImage {
+    url: string;
+    previewUrl: string;
+}
+
+// Own poster picked in the metadata editor: JPEG data URLs, scaled down by the renderer
+export interface CustomPoster {
+    poster: string;
+    preview: string;
+}
+
+export const isCustomPoster = (value: unknown): value is CustomPoster => {
+    const isJpeg = (url: unknown) => typeof url === 'string' && url.startsWith('data:image/jpeg;base64,');
+    return typeof value === 'object' && value !== null && isJpeg((value as CustomPoster).poster) && isJpeg((value as CustomPoster).preview);
+};
+
 // Used by the main process with net.fetch (the renderer goes through IPC)
 export type FetchFn = (url: string, init?: { method?: string; headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
@@ -25,7 +52,18 @@ export const getDefaultProvider = (settings: ApiSettings | undefined): MetadataP
     return !getProviderApiKey('kinopoisk', settings) && getProviderApiKey('tmdb', settings) ? 'tmdb' : 'kinopoisk';
 };
 
-export const buildMetadataFromFilm = (metadataId: string, film: MovieSearchResult): MovieMetadata | null => {
+export const getMediaType = (film: MovieSearchResult): MovieMetadata['type'] =>
+    ['TV_SERIES', 'MINI_SERIES', 'TV_SHOW'].includes(film.type) ? 'series' : 'movie';
+
+// Page of the title on the provider's site; TMDB has separate paths for movies and series
+export const getProviderFilmUrl = (meta: MovieMetadata, fallbackType: MovieMetadata['type']): string | null => {
+    const { kinopoisk, tmdb } = meta.externalIds ?? {};
+    if (kinopoisk) return `https://www.kinopoisk.ru/film/${encodeURIComponent(kinopoisk)}/`;
+    if (tmdb) return `https://www.themoviedb.org/${(meta.type ?? fallbackType) === 'series' ? 'tv' : 'movie'}/${encodeURIComponent(tmdb)}`;
+    return null;
+};
+
+export const buildMetadataFromFilm =(metadataId: string, film: MovieSearchResult): MovieMetadata | null => {
     const title = film.nameRu || film.nameEn;
     if (!title || !film.posterUrl) return null;
 
@@ -46,6 +84,7 @@ export const buildMetadataFromFilm = (metadataId: string, film: MovieSearchResul
         }
     ];
     meta.dataSource = isTmdb ? MoveDbMediaSource.TMDB : MoveDbMediaSource.Kinopoisk;
+    meta.type = getMediaType(film);
     meta.posterUrl = film.posterUrl;
     meta.posterUrlPreview = film.posterUrlPreview;
     return meta;

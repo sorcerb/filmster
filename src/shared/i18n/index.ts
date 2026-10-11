@@ -43,7 +43,12 @@ export const LANGUAGES: { code: Language; name: string }[] = [
     { code: 'uk', name: 'Українська' },
 ];
 
-export const isLanguage = (value: unknown): value is Language =>
+// Interface languages written in Cyrillic, where converting typed Latin text makes sense
+const CYRILLIC_LANGUAGES: Language[] = ['ru', 'uk'];
+
+export const isCyrillicLanguage = (language: Language): boolean => CYRILLIC_LANGUAGES.includes(language);
+
+export const isLanguage =(value: unknown): value is Language =>
     typeof value === 'string' && value in locales;
 
 // Maps a system locale like "ru-RU" to a supported language

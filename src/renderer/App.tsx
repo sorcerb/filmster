@@ -2,6 +2,7 @@ import Navbar from './layout/Navbar';
 import { Route, HashRouter, Routes, Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Files from './pages/Files';
+import News from './pages/News';
 import Settings from './pages/Settings';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
@@ -79,6 +80,7 @@ function App() {
                 <Routes>
                     <Route element={<MainLayout />}>
                         <Route path="/" element={<Home />} />
+                        <Route path="/news" element={<News />} />
                         <Route path="/files" element={<Files />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/profile" element={<Profile />} />

@@ -21,6 +21,7 @@ const TRANSCODE_SEEK_DEBOUNCE = 350;
 // A seek in transcode mode moves at least this far in its direction, even if a keyframe is closer to the target
 const MIN_KEYFRAME_STEP = 1;
 const VOLUME_STORAGE_KEY = 'player-volume';
+const FULLSCREEN_STORAGE_KEY = 'player-fullscreen';
 // Timeline hover preview: frames are taken every PREVIEW_STEP seconds, requested once the mouse rests a bit
 const PREVIEW_STEP = 5;
 const PREVIEW_DEBOUNCE = 100;
@@ -147,7 +148,11 @@ const formatSubtitle = (track: SubtitleTrackInfo, index: number, t: (key: Messag
     return parts.length ? parts.join(' - ') : t('player.track', { number: index + 1 });
 };
 
-const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObject<HTMLDivElement | null> }) => {
+const PlayerView = ({ id, fullscreenRef, closingRef }: {
+    id?: string;
+    fullscreenRef: RefObject<HTMLDivElement | null>;
+    closingRef: RefObject<boolean>;
+}) => {
     const { t } = useI18n();
     const navigate = useNavigate();
     const [mediaItem, setMediaItem] = useState<MediaFileModel | null>(null);
@@ -511,9 +516,10 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
     }, [fullscreenRef]);
 
     const goBack = useCallback(() => {
+        closingRef.current = true;
         if (document.fullscreenElement) document.exitFullscreen();
         navigate(-1);
-    }, [navigate]);
+    }, [navigate, closingRef]);
 
     useEffect(() => {
         const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -1019,13 +1025,34 @@ const PlayerView = ({ id, fullscreenRef }: { id?: string; fullscreenRef: RefObje
 };
 
 // Remount on file change so no state leaks between files. Fullscreen is requested on the wrapper,
-// which outlives the remount, so switching files doesn't drop out of fullscreen
+// which outlives the remount, so switching files doesn't drop out of fullscreen.
+// Fullscreen is remembered: closing the player keeps the choice, the next file opens in fullscreen
 const Player = () => {
     const { id } = useParams<{ id: string }>();
     const fullscreenRef = useRef<HTMLDivElement>(null);
+    // Set when the player is closed, so leaving fullscreen on the way out isn't saved as a choice
+    const closingRef = useRef(false);
+
+    useEffect(() => {
+        let active = true;
+        const onFullscreenChange = () => {
+            if (!active || closingRef.current || !fullscreenRef.current?.isConnected) return;
+            localStorage.setItem(FULLSCREEN_STORAGE_KEY, document.fullscreenElement ? '1' : '0');
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        if (localStorage.getItem(FULLSCREEN_STORAGE_KEY) === '1' && !document.fullscreenElement) {
+            // Needs the click that opened the player; without it the player just opens windowed
+            fullscreenRef.current?.requestFullscreen().catch(() => {});
+        }
+        return () => {
+            active = false;
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
+        };
+    }, []);
+
     return (
         <div ref={fullscreenRef} className="w-full h-dvh bg-black">
-            <PlayerView key={id} id={id} fullscreenRef={fullscreenRef} />
+            <PlayerView key={id} id={id} fullscreenRef={fullscreenRef} closingRef={closingRef} />
         </div>
     );
 };

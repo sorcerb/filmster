@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { MediaFileModel } from '../models/MediaFileModel';
-import { Play, List, ChevronLeft, ChevronDown, Search, Pencil } from 'lucide-react';
+import { Play, List, ChevronLeft, ChevronDown, Search, Pencil, Star, ExternalLink } from 'lucide-react';
 import { MovieMetadata } from '../models/MediaMetadata';
+import { getProviderFilmUrl } from '../../shared/metadataApi';
 import { FileProgress } from '../hooks/useWatchProgress';
 import EditMetadataModal from './EditMetadataModal';
 import { useI18n } from '../i18n/I18nProvider';
+import CustomLinkButtons, { LINK_PILL_CLASS } from './CustomLinkButtons';
 
 interface MediaDetailsCardProps {
     // A movie, or a series with its episodes and seasons
@@ -15,7 +17,7 @@ interface MediaDetailsCardProps {
 
 // Poster, metadata, file information and play buttons of one movie or series
 const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProps) => {
-    const { t } = useI18n();
+    const { t, language } = useI18n();
     const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
 
@@ -59,6 +61,11 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
     useEffect(() => {
         loadMetadata();
     }, [file.metadataId]);
+
+    // Rating and page of the title on the provider the metadata came from
+    const providerUrl = metaData ? getProviderFilmUrl(metaData, mediaItem.type === 'series' ? 'series' : 'movie') : null;
+    const providerName = t(metaData?.externalIds?.kinopoisk ? 'api.providerKinopoisk' : 'api.providerTmdb');
+    const rating = metaData?.ratings?.[0];
 
     return (
         <div className="bg-neutral-800 rounded-lg p-4 md:p-6 shadow-lg">
@@ -128,6 +135,26 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
                         <span className="px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-xs">
                             {mediaItem.type === 'movie' ? t('common.movie') : t('common.series')}
                         </span>
+                        {providerUrl && (
+                            <a
+                                href={providerUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={[t('details.openOn', { provider: providerName }), rating?.votesCount ? t('details.votes', { count: rating.votesCount.toLocaleString(language) }) : '']
+                                    .filter(Boolean).join(' · ')}
+                                className={LINK_PILL_CLASS}
+                            >
+                                {rating?.value ? (
+                                    <>
+                                        <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                                        <span className="font-medium text-white">{rating.value.toFixed(1)}</span>
+                                    </>
+                                ) : null}
+                                <span>{providerName}</span>
+                                <ExternalLink className="h-3 w-3 text-neutral-500" />
+                            </a>
+                        )}
+                        <CustomLinkButtons title={metaData?.title || mediaItem.parsedName} />
                     </div>
 
                     <div className="mt-4 text-neutral-400 line-clamp-3 gap-2 flex flex-wrap rounded-lg">

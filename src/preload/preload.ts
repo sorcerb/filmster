@@ -6,7 +6,7 @@ import { MediaFileModel, RegexPatterns } from '../renderer/models/MediaFileModel
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { MovieMetadata } from '../renderer/models/MediaMetadata';
 import { ApiSettings } from '../renderer/models/ApiSettings';
-import type { MetadataProvider } from '../shared/metadataApi';
+import type { CustomPoster, MetadataProvider, NewsItem, NewsSection, PosterImage } from '../shared/metadataApi';
 import { LibraryFileProgress, WatchProgress } from '../renderer/models/WatchProgressModel';
 import { MpcWatchEntry } from '../renderer/stores/MpcHistoryService';
 import { MediaInfo, SubtitleCue, SubtitleRequest } from '../renderer/models/MediaInfo';
@@ -14,6 +14,7 @@ import { PlayerType } from '../renderer/models/PlayerType';
 import { TrackPreference } from '../renderer/models/TrackPreference';
 import { EpisodeMarkers } from '../renderer/models/EpisodeMarkers';
 import { GenreIcons } from '../renderer/models/GenreIcons';
+import { CustomLink } from '../renderer/models/CustomLink';
 import { Language } from '../shared/i18n';
 import type { WebServerSettings } from '../renderer/stores/WebServerStore';
 import type { WebServerStatus } from '../main/webServer';
@@ -40,9 +41,12 @@ const api = {
 
   getApiSettings: (): Promise<ApiSettings> => ipcRenderer.invoke('get-api-settings'),
   updateApiSettings: (settings: ApiSettings): Promise<void> => ipcRenderer.invoke('update-api-settings', settings),
-  getDefaultMetadataProvider: (): Promise<MetadataProvider> => ipcRenderer.invoke('get-default-metadata-provider'),
+  getMetadataProviders: (): Promise<MetadataProvider[]> => ipcRenderer.invoke('get-metadata-providers'),
+  getFilmPosters: (film: MovieSearchResult): Promise<PosterImage[]> => ipcRenderer.invoke('metadata-posters', film),
   searchMetadata: (provider: MetadataProvider, keyword: string): Promise<MovieSearchResult[]> => ipcRenderer.invoke('metadata-search', provider, keyword),
   findMetadataFilm: (parsedName: string, year: number | undefined): Promise<MovieSearchResult | null> => ipcRenderer.invoke('metadata-find-film', parsedName, year),
+  getFilmDetails: (film: MovieSearchResult): Promise<MovieSearchResult | null> => ipcRenderer.invoke('metadata-film-details', film),
+  getNews: (provider: MetadataProvider, section: NewsSection): Promise<NewsItem[]> => ipcRenderer.invoke('metadata-news', provider, section),
 
   showFolderInExplorer: async (folderPath: string) => ipcRenderer.invoke('show-folder-in-explorer', folderPath),
   openDataFolder: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('open-data-folder'),
@@ -59,7 +63,7 @@ const api = {
   getRegexPatterns: (): Promise<RegexPatterns> => ipcRenderer.invoke('get-regex-patterns'),
   updateRegexPatterns: (patterns: RegexPatterns): Promise<void> => ipcRenderer.invoke('update-regex-patterns', patterns),
 
-  saveMetadata: (metadata: MovieMetadata, selectedMovie: MovieSearchResult | null): Promise<{ metadataPath: string; posterPaths: string[]; posterError?: string }> => ipcRenderer.invoke('save-metadata', metadata, selectedMovie),
+  saveMetadata: (metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, customPoster?: CustomPoster | null): Promise<{ metadataPath: string; posterPaths: string[]; posterError?: string }> => ipcRenderer.invoke('save-metadata', metadata, selectedMovie, customPoster),
   loadMetadata: (metadataId: string): Promise<MovieMetadata | null> => ipcRenderer.invoke('load-metadata', metadataId),
   openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('open-file', filePath),
 
@@ -71,6 +75,8 @@ const api = {
   setLanguage: (language: Language): Promise<void> => ipcRenderer.invoke('set-language', language),
   getGenreIcons: (): Promise<GenreIcons> => ipcRenderer.invoke('get-genre-icons'),
   setGenreIcons: (icons: GenreIcons): Promise<void> => ipcRenderer.invoke('set-genre-icons', icons),
+  getCustomLinks: (): Promise<CustomLink[]> => ipcRenderer.invoke('get-custom-links'),
+  setCustomLinks: (links: CustomLink[]): Promise<void> => ipcRenderer.invoke('set-custom-links', links),
   onConvertToCyrillic: (callback: (text: string) => void) => {
     ipcRenderer.on('convert-selection', (_event, text) => callback(text));
   },

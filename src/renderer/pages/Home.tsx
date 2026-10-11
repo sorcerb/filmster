@@ -513,16 +513,19 @@ const Home = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={autoLoadMetadata}
-                        disabled={isLoadingAutoLoad || missingMetadataCount === 0}
-                        className="px-3 py-1 vertical-align-middle text-neutral-200 hover:text-white disabled:text-neutral-600 disabled:cursor-default"
-                        title={t('home.loadAllMetadata')}
-                    >
-                        <Download className="h-5 w-5 inline mb-1" />
-                        <span className="hidden md:inline"> {isLoadingAutoLoad ? t('common.loading') : t('home.loadAllMetadata')}</span>
-                        {!isLoadingAutoLoad && missingMetadataCount > 0 && <span> ({missingMetadataCount})</span>}
-                    </button>
+                    {/* Only while some titles have no metadata */}
+                    {(isLoadingAutoLoad || missingMetadataCount > 0) && (
+                        <button
+                            onClick={autoLoadMetadata}
+                            disabled={isLoadingAutoLoad}
+                            className="px-3 py-1 vertical-align-middle text-neutral-200 hover:text-white disabled:text-neutral-600 disabled:cursor-default"
+                            title={t('home.loadAllMetadata')}
+                        >
+                            <Download className="h-5 w-5 inline mb-1" />
+                            <span className="hidden md:inline"> {isLoadingAutoLoad ? t('common.loading') : t('home.loadAllMetadata')}</span>
+                            {!isLoadingAutoLoad && <span> ({missingMetadataCount})</span>}
+                        </button>
+                    )}
                     <div className="inline-block md:ml-4">
                         <label htmlFor="sort" className="hidden md:inline text-sm text-gray-400 mr-2">{t('home.sortBy')}</label>
                         <select

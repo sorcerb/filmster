@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, protocol, shell } from 'electron';
 import path from 'path';
 import contextMenu from 'electron-context-menu';
 import './ipcHandlers';
@@ -10,7 +10,7 @@ import { initGarbageCollector } from './garbageCollector';
 import { initAutoUpdate } from './updater';
 import * as packageJson from '../../package.json';
 import { getLanguage } from '../renderer/stores/LanguageStore';
-import { translate } from '../shared/i18n';
+import { isCyrillicLanguage, translate } from '../shared/i18n';
 
 const appVersion = packageJson.version;
 
@@ -25,7 +25,7 @@ contextMenu({
   prepend: (defaultActions, parameters, browserWindow) => [
     {
       label: translate(getLanguage(), 'main.convertToCyrillic'),
-      visible: !!(parameters.selectionText && parameters.selectionText.trim().length > 0 && parameters.isEditable),
+      visible: isCyrillicLanguage(getLanguage()) && !!(parameters.selectionText && parameters.selectionText.trim().length > 0 && parameters.isEditable),
       click: () => {
         if (browserWindow && 'webContents' in browserWindow) {
           browserWindow.webContents.send('convert-selection', parameters.selectionText);
@@ -60,6 +60,18 @@ const createWindow = () => {
   // index.html has no <title>, so on load or reload Electron would replace the window title
   // with the page address ("index.html" in the installed app, "localhost:5173" in dev)
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
+
+  // Links to websites (e.g. a film on TMDB or Kinopoisk) open in the default browser, not in a new app window
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  // Same for plain links: the app window never leaves the app's own pages
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (new URL(url).origin === new URL(mainWindow.webContents.getURL()).origin) return;
+    event.preventDefault();
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+  });
 
   // and load the index.html of the app.
   if (process.env.ELECTRON_RENDERER_URL) {
