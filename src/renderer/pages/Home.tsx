@@ -17,10 +17,8 @@ import { GenreIcons } from '../models/GenreIcons';
 const getItemKey = (item: MediaFileModel) =>
     item.groupId ? `group:${item.groupId}` : item.type === MediaType.Series ? `series:${item.parsedName}` : item.id;
 
-// Grouping by drag and drop needs a mouse
 const canDragCards = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-// A mixed group (movies and series) is shown under both filters
 const isOfType = (item: MediaFileModel, type: MediaType) => (item.groupTypes ?? [item.type]).includes(type);
 
 const Home = () => {
@@ -92,7 +90,6 @@ const Home = () => {
     useEffect(() => {
         localStorage.setItem('genreMode', genreMode);
     }, [genreMode]);
-    // Kept for the session, so it survives opening a movie and coming back
     const [search, setSearch] = useState(() => sessionStorage.getItem('homeSearch') ?? '');
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,7 +97,6 @@ const Home = () => {
         sessionStorage.setItem('homeSearch', search);
     }, [search]);
 
-    // Ctrl+F focuses the search
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.ctrlKey && e.code === 'KeyF') {
@@ -127,7 +123,6 @@ const Home = () => {
             .catch(error => console.error('Error reading genre icons:', error));
     }, []);
 
-    // silent: background refresh without the full-page spinner, keeps the current list on error
     const loadMediaFiles = async (silent = false): Promise<MediaFileModel[] | null> => {
         if (!silent) setIsLoading(true);
         try {
@@ -140,7 +135,6 @@ const Home = () => {
         }
     };
 
-    // Number of cards per genre (same normalization as the filter, see utils/genres.ts)
     const getAllGenres = (items: MediaFileModel[]): Record<string, number> => {
         const counts: Record<string, number> = {};
         items.forEach(item => {
@@ -210,7 +204,6 @@ const Home = () => {
             if (!item.groupId) {
                 return { ...item, seasons: item.seasons ? Array.from(item.seasons) : undefined };
             }
-            // The group card is its earliest member (poster, year, genres), named after it unless renamed
             const groupTypes = Array.from(types as Set<MediaType>);
             const episodes = [...item.episodes].sort(compareGroupMembers);
             const cover = episodes[0];
@@ -265,7 +258,6 @@ const Home = () => {
         loadAndGroupFiles();
     }, []);
 
-    // New files found by auto-scan and metadata loaded for them in the background
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;
         const refresh = () => {
@@ -315,7 +307,6 @@ const Home = () => {
         mode: 'single' | 'multi',
         includeSet: Set<string>
     ) => {
-        // Search looks through the whole library, regardless of the type and genre filters
         const matchesSearch = createSearchMatcher(search);
         let filtered = [...items];
         if (matchesSearch) {
@@ -358,11 +349,9 @@ const Home = () => {
     };
 
     const handleGenreClick = (genre: string) => {
-        // Clicking the button switches to single-genre mode
         setSelectedGenre(genre);
         setGenreMode(genre === 'all' ? 'multi' : 'single');
         if (genre === 'all') {
-            // All genres of the library, also those hidden by the type filter
             setIncludedGenres(new Set(Object.keys(getAllGenres(groupedItems))));
         } else {
             setIncludedGenres(new Set([genre]));
@@ -390,7 +379,6 @@ const Home = () => {
         });
     };
 
-    // Drag and drop: a card dropped onto another one joins its group (or forms a new group with it)
     const [draggedKey, setDraggedKey] = useState<string | null>(null);
     const [dropTargetKey, setDropTargetKey] = useState<string | null>(null);
 
@@ -410,7 +398,6 @@ const Home = () => {
         loadAndGroupFiles(true);
     };
 
-    // Cards the "Load all metadata" button would load
     const missingMetadataCount = displayItems.filter(f => f.metadata == null).length;
 
     const autoLoadMetadata = async () => {
@@ -427,6 +414,8 @@ const Home = () => {
                     }
 
                     await window.electron.saveMetadata(newMeta, film);
+                    // What search results don't have: the backdrop (Kinopoisk) and the cast
+                    await window.electron.loadMissingDetails(file.metadataId);
                     const newMetadata = await window.electron.loadMetadata(file.metadataId) as MovieMetadata;
                     if (newMetadata != null) {
                         file.metadata = { ...newMetadata };
@@ -513,7 +502,6 @@ const Home = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Only while some titles have no metadata */}
                     {(isLoadingAutoLoad || missingMetadataCount > 0) && (
                         <button
                             onClick={autoLoadMetadata}

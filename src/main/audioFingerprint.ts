@@ -1,13 +1,7 @@
-// Audio fingerprints for finding the intro and the credits shared by episodes of a series.
-// Every frame gets 32 bits: whether the energy difference of neighbouring frequency bands grew or fell
-// since the previous frame (Haitsma & Kalker). The same music gives nearly the same bits in every episode,
-// even with a different encoding, while unrelated audio differs in about half of them.
-
 export const SAMPLE_RATE = 5512;
 const FRAME_SIZE = 2048;
 const HOP_SIZE = 512;
 export const FRAME_SECONDS = HOP_SIZE / SAMPLE_RATE;
-// 33 bands give 32 differences, one bit each
 const BAND_COUNT = 33;
 const MIN_FREQUENCY = 300;
 const MAX_FREQUENCY = 2000;
@@ -16,11 +10,9 @@ const SILENCE_RMS = 100;
 
 export interface Fingerprint {
     codes: Uint32Array;
-    // 1 for silent frames, never counted as a match
     silent: Uint8Array;
 }
 
-// In-place radix-2 FFT
 const fft = (re: Float64Array, im: Float64Array) => {
     const n = re.length;
     for (let i = 1, j = 0; i < n; i++) {
@@ -51,7 +43,6 @@ const fft = (re: Float64Array, im: Float64Array) => {
     }
 };
 
-// Mono 16-bit PCM at SAMPLE_RATE
 export const fingerprint = (samples: Int16Array): Fingerprint => {
     const frameCount = Math.max(0, Math.floor((samples.length - FRAME_SIZE) / HOP_SIZE) + 1);
     const codes = new Uint32Array(frameCount);
@@ -59,7 +50,6 @@ export const fingerprint = (samples: Int16Array): Fingerprint => {
 
     const window = new Float64Array(FRAME_SIZE);
     for (let i = 0; i < FRAME_SIZE; i++) window[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (FRAME_SIZE - 1));
-    // FFT bin where each band starts, log-spaced
     const bandEdges = Array.from({ length: BAND_COUNT + 1 }, (_, b) =>
         Math.round(MIN_FREQUENCY * Math.pow(MAX_FREQUENCY / MIN_FREQUENCY, b / BAND_COUNT) * FRAME_SIZE / SAMPLE_RATE));
 
@@ -100,15 +90,11 @@ export const fingerprint = (samples: Int16Array): Fingerprint => {
 const BIT_COUNTS = new Uint8Array(1 << 16);
 for (let i = 1; i < BIT_COUNTS.length; i++) BIT_COUNTS[i] = (i & 1) + BIT_COUNTS[i >> 1];
 
-// Frames match when at most this many of the 32 bits differ (unrelated audio: 16 on average)
 const MAX_BIT_ERRORS = 10;
-// A segment survives this many unmatched frames in a row (a short silence or a sound effect over the music)
 const MAX_GAP_FRAMES = Math.round(1 / FRAME_SECONDS);
-// Share of matched frames a segment needs
 const MIN_DENSITY = 0.5;
 
 export interface SharedSegment {
-    // Frame indices in `a` and `b`, end exclusive
     startA: number;
     startB: number;
     length: number;
@@ -117,11 +103,8 @@ export interface SharedSegment {
 // Segments kept per comparison: the intro may be shorter than a music sting repeated mid-episode
 const MAX_SEGMENTS = 10;
 
-// Stretches of audio present in both fingerprints with a length within [minFrames, maxFrames], longest first,
-// not overlapping in `a`. Tries every alignment of the two; longer matches (e.g. a recap of a previous episode) are ignored.
 export const findSharedSegments = (a: Fingerprint, b: Fingerprint, minFrames: number, maxFrames: number): SharedSegment[] => {
     const found: SharedSegment[] = [];
-    // Shift = index in a - index in b
     for (let shift = -(b.codes.length - 1); shift < a.codes.length; shift++) {
         const from = Math.max(0, shift);
         const to = Math.min(a.codes.length, b.codes.length + shift);
@@ -158,7 +141,6 @@ export const findSharedSegments = (a: Fingerprint, b: Fingerprint, minFrames: nu
         closeRun();
     }
 
-    // The same audio also matches at neighbouring alignments: keep the longest of overlapping ones
     const result: SharedSegment[] = [];
     for (const segment of found.sort((x, y) => y.length - x.length)) {
         if (result.length >= MAX_SEGMENTS) break;

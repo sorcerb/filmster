@@ -22,18 +22,14 @@ const TRANSCODE_SEEK_DEBOUNCE = 350;
 const MIN_KEYFRAME_STEP = 1;
 const VOLUME_STORAGE_KEY = 'player-volume';
 const FULLSCREEN_STORAGE_KEY = 'player-fullscreen';
-// Timeline hover preview: frames are taken every PREVIEW_STEP seconds, requested once the mouse rests a bit
 const PREVIEW_STEP = 5;
 const PREVIEW_DEBOUNCE = 100;
 // Displayed width of the preview frame (ffmpeg renders it at this width too, see mediaProtocol.ts)
 const PREVIEW_WIDTH = 240;
-// Next episode card: counts down this long from the start of the credits, then the next episode plays.
-// Without known credits it shows for this long before the end, where the next episode starts anyway
 const NEXT_EPISODE_COUNTDOWN = 10;
 // Position changes up to this long between time updates are playback, longer ones are seeks
 const MAX_PLAYBACK_STEP = 2;
 
-// Mouse side buttons (MouseEvent.button)
 const MOUSE_BACK = 3;
 const MOUSE_FORWARD = 4;
 
@@ -60,14 +56,12 @@ const toMediaUrl = (filePath: string, transcode?: { start: number; audio: number
         : url;
 };
 
-// The video codec can't be decoded here, so ffmpeg re-encodes it to H.264
 const needsVideoEncode = (info: MediaInfo | null): boolean => {
     if (!info?.videoCodec) return false;
     const type = VIDEO_CODEC_TYPES[info.videoCodec];
     return !type || !document.createElement('video').canPlayType(type);
 };
 
-// Whether the file plays through ffmpeg with audio track `audio` rather than as the raw file
 const needsTranscode = (filePath: string, info: MediaInfo | null, audio: number): boolean => {
     const extension = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
     if (!DIRECT_CONTAINERS.includes(extension) || needsVideoEncode(info)) return true;
@@ -88,7 +82,6 @@ const formatTime = (seconds: number): string => {
 
 // Transcoded streams start on a video keyframe and play from it. The piped stream isn't seekable, so a native
 // seek inside it lands between keyframes and shows green blocks until the next one.
-// Picks the keyframe nearest to `target` that is on the seek's side of `from` (the position before the seek).
 const pickKeyframe = (keyframes: number[], target: number, from = target): number => {
     const candidates = target > from
         ? keyframes.filter(k => k >= from + MIN_KEYFRAME_STEP)
@@ -97,15 +90,12 @@ const pickKeyframe = (keyframes: number[], target: number, from = target): numbe
     return candidates.reduce((best, k) => Math.abs(k - target) < Math.abs(best - target) ? k : best);
 };
 
-// Position a transcoded stream for a seek to `target` starts from: re-encoded video starts exactly there
 const getStreamStart = async (filePath: string, info: MediaInfo | null, target: number, from = target): Promise<number> =>
     needsVideoEncode(info) ? target : pickKeyframe(await window.electron.getKeyframes(filePath, target), target, from);
 
 const getFolder = (filePath: string) => filePath.slice(0, filePath.lastIndexOf('\\') + 1).toLowerCase();
 
-// User group: its files; series: episodes of the same show; movies: files in the same folder
 const getPlaylist = (item: MediaFileModel, files: MediaFileModel[]): MediaFileModel[] => {
-    // Same order as on the group's details page
     if (item.groupId) return files.filter(f => f.groupId === item.groupId).sort(compareGroupMembers);
     const playlist = item.type === MediaType.Series
         ? files.filter(f => f.type === MediaType.Series && !f.groupId && f.parsedName === item.parsedName)
@@ -116,7 +106,6 @@ const getPlaylist = (item: MediaFileModel, files: MediaFileModel[]): MediaFileMo
         || a.fullPath.localeCompare(b.fullPath));
 };
 
-// Chosen tracks are kept per movie, and for a series - one for all its seasons and episodes
 const getTrackPreferenceKey = (item: MediaFileModel): string =>
     item.type === MediaType.Series ? `series:${item.parsedName}` : `file:${item.fullPath}`;
 
@@ -128,7 +117,6 @@ const formatItemTitle = (item: MediaFileModel): string => {
     return item.fileName || item.parsedName;
 };
 
-// Outside groups the series name is the same for all, so only the episode; movies go by the found title
 const formatPlaylistEntry = (item: MediaFileModel): string => {
     if (item.type === MediaType.Series && item.episode) {
         const episode = `S${String(item.season ?? 1).padStart(2, '0')}E${String(item.episode).padStart(2, '0')}`;
@@ -158,7 +146,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
     const [mediaItem, setMediaItem] = useState<MediaFileModel | null>(null);
     const [prevItem, setPrevItem] = useState<MediaFileModel | null>(null);
     const [nextItem, setNextItem] = useState<MediaFileModel | null>(null);
-    // Files the previous / next buttons go through and the index of this one in them
     const [playlist, setPlaylist] = useState<MediaFileModel[]>([]);
     const [playlistIndex, setPlaylistIndex] = useState(-1);
     const [playlistOpen, setPlaylistOpen] = useState(false);
@@ -166,7 +153,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Audio track index (within audio streams) and position the current stream starts from (transcode mode only)
     const [audioTrack, setAudioTrack] = useState(0);
     const [streamStart, setStreamStart] = useState(0);
     const [streamNonce, setStreamNonce] = useState(0);
@@ -186,12 +172,9 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
     const [osd, setOsd] = useState<string | null>(null);
     const [hover, setHover] = useState<{ time: number; x: number; width: number } | null>(null);
     const [preview, setPreview] = useState<{ time: number; url: string } | null>(null);
-    // Width / height of the preview frames; known once the first one loads, then frames still loading show as a dark box
     const [previewAspect, setPreviewAspect] = useState<number | null>(null);
-    // Series only: intro and credits (null while the episode is analyzed), whether to skip the intro by itself
     const [markers, setMarkers] = useState<EpisodeMarkers | null>(null);
     const [autoSkipIntro, setAutoSkipIntro] = useState(false);
-    // The next episode card was closed
     const [nextDismissed, setNextDismissed] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -205,16 +188,13 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
     const pendingSeekRef = useRef<number | null>(null);
     // Last known logical position; kept in a ref so it survives the <video> being detached on unmount
     const positionRef = useRef(0);
-    // Transcode mode: position the coalesced seeks started from (decides which way to pick the keyframe)
     const seekOriginRef = useRef(0);
     // A new src is loading (start, seek or track change in transcode mode). Loading resets `paused`,
     // so whether to play once it's loaded is kept separately: a paused video stays paused after a seek
     const streamLoadingRef = useRef(true);
     const playIntentRef = useRef(true);
-    // Preview frame object URLs by time; the latest requested time
     const previewCacheRef = useRef(new Map<number, string>());
     const previewWantedRef = useRef<number | null>(null);
-    // Position at the previous time update: tells playback from seeks
     const lastTimeRef = useRef(0);
     const playlistMenuRef = useRef<HTMLDivElement>(null);
     const playlistCurrentRef = useRef<HTMLButtonElement>(null);
@@ -249,7 +229,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
                 setNextItem(index >= 0 && index < playlist.length - 1 ? playlist[index + 1] : null);
                 setPlaylist(playlist);
                 setPlaylistIndex(index);
-                // The tracks chosen before (e.g. in the previous episode) if this file has them, otherwise its default ones
                 const savedAudio = trackPreference?.audio && info
                     ? findMatchingTrack(trackPreference.audio, info.audioTracks.map(getAudioSignature))
                     : null;
@@ -284,7 +263,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         return () => { window.electron.stopTranscode(); };
     }, [id]);
 
-    // Analysis of the episode finished while it plays
     useEffect(() => {
         if (mediaItem?.type !== MediaType.Series) return;
         return window.electron.onEpisodeMarkersUpdated((filePath, updated) => {
@@ -292,7 +270,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         });
     }, [mediaItem]);
 
-    // Logical playback position in the file, independent of mode
     const getTime = useCallback((): number => {
         if (pendingSeekRef.current !== null) return pendingSeekRef.current;
         const video = videoRef.current;
@@ -329,7 +306,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         await window.electron.saveWatchProgress(mediaItem.fullPath, progress);
     }, [mediaItem, duration]);
 
-    // Periodic save + save on leaving the page / closing the app
     useEffect(() => {
         if (!mediaItem) return;
         const interval = setInterval(() => {
@@ -343,7 +319,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         };
     }, [mediaItem, saveProgress]);
 
-    // Restarts the transcoded stream at `time` (copied video: the keyframe nearest to it in the seek's direction)
     const restartStream = useCallback(async (time: number) => {
         if (!mediaItem) return;
         const start = await getStreamStart(mediaItem.fullPath, mediaInfo, time, seekOriginRef.current);
@@ -401,7 +376,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         showOsd(t(enabled ? 'player.autoSkipIntroOn' : 'player.autoSkipIntroOff'));
     }, [mediaItem, autoSkipIntro, showOsd, t]);
 
-    // Credits known: the next episode plays NEXT_EPISODE_COUNTDOWN seconds into them; otherwise it plays at the end (onEnded)
     const creditsStart = markers?.creditsStart ?? null;
     const nextEpisodeAt = creditsStart !== null ? creditsStart + NEXT_EPISODE_COUNTDOWN : duration;
     const nextCardFrom = creditsStart ?? duration - NEXT_EPISODE_COUNTDOWN;
@@ -410,8 +384,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         !!markers?.intro && time >= markers.intro.start && time < markers.intro.end - 1, [markers]);
     const inIntro = isInIntro(currentTime);
 
-    // Called on every time update with the new position: skips the intro (also after a seek into it: to watch it,
-    // auto skip is turned off), plays the next episode when playback goes on into the credits (a seek there is left alone)
     const onPlaybackTime = useCallback((time: number) => {
         const previous = lastTimeRef.current;
         lastTimeRef.current = time;
@@ -430,7 +402,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         const track = tracks[index];
         clearTimeout(seekTimeoutRef.current);
         const transcode = needsTranscode(mediaItem.fullPath, mediaInfo, index);
-        // Transcode mode starts the new stream (and playback) at the keyframe before the current position
         let position = getTime();
         if (transcode) position = await getStreamStart(mediaItem.fullPath, mediaInfo, position);
         const streamFrom = transcode ? position : 0;
@@ -600,7 +571,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         return () => window.removeEventListener('pointerdown', onPointerDown);
     }, [playlistOpen]);
 
-    // Mouse wheel = volume, mouse back/forward buttons = seek
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -635,7 +605,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
         };
     }, [mediaItem, changeVolume, seekBy, volume]);
 
-    // Fetches the preview frame for the hovered time; until it arrives the box is dark, not the previous frame
     const previewTime = hover && duration > 0 ? Math.floor(hover.time / PREVIEW_STEP) * PREVIEW_STEP : null;
     useEffect(() => {
         previewWantedRef.current = previewTime;
@@ -721,7 +690,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
             style={{ cursor: controlsVisible ? 'default' : 'none' }}
             onMouseMove={revealControls}
             onPointerDown={(e) => {
-                // No mouse to move on a touch screen: a tap shows the controls
                 tapRevealedControlsRef.current = e.pointerType === 'touch' && !controlsVisible;
                 if (e.pointerType === 'touch') revealControls();
             }}
@@ -757,7 +725,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
                 onVolumeChange={() => setIsMuted(videoRef.current?.muted ?? false)}
                 onError={handleVideoError}
                 onClick={() => {
-                    // That tap only showed the controls
                     if (tapRevealedControlsRef.current) return;
                     togglePlay();
                 }}
@@ -810,7 +777,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
                 </div>
             )}
 
-            {/* Above the controls, shown even when they are hidden */}
             {(inIntro || showNextCard) && (
                 <div className="absolute right-4 sm:right-8 bottom-28 z-10">
                     {inIntro ? (
@@ -833,7 +799,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
                                     {t('player.nextEpisodeIn', { seconds: Math.max(0, Math.ceil(nextEpisodeAt - currentTime)) })}
                                 </div>
                                 <div className="text-lg font-medium truncate">{formatItemTitle(nextItem)}</div>
-                                {/* Countdown: fills up until the next episode starts */}
                                 <div
                                     className="absolute left-0 bottom-0 h-0.5 bg-white/70 group-hover:bg-black/40 transition-[width] duration-500 ease-linear"
                                     style={{ width: `${Math.min(100, Math.max(0, 1 - (nextEpisodeAt - currentTime) / NEXT_EPISODE_COUNTDOWN) * 100)}%` }}
@@ -1026,7 +991,6 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
 
 // Remount on file change so no state leaks between files. Fullscreen is requested on the wrapper,
 // which outlives the remount, so switching files doesn't drop out of fullscreen.
-// Fullscreen is remembered: closing the player keeps the choice, the next file opens in fullscreen
 const Player = () => {
     const { id } = useParams<{ id: string }>();
     const fullscreenRef = useRef<HTMLDivElement>(null);

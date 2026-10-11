@@ -5,7 +5,6 @@ import { useI18n } from '../i18n/I18nProvider';
 
 const inputClass = 'bg-neutral-900 text-white text-sm rounded px-2 py-1 border border-neutral-600 focus:border-blue-500 focus:outline-none';
 
-// Links to other sites with a search for the title: on news and on the movie page
 const CustomLinkSettings = () => {
     const { t } = useI18n();
     const [links, setLinks] = useState<CustomLink[]>([]);

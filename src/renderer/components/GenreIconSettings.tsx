@@ -5,7 +5,6 @@ import { GENRE_ICONS } from '../utils/genreIcons';
 import { getItemGenres } from '../utils/genres';
 import { useI18n } from '../i18n/I18nProvider';
 
-// Icon before and after a genre's button on the home page
 const GenreIconSettings = () => {
     const { t } = useI18n();
     const [icons, setIcons] = useState<GenreIcons>({});

@@ -12,7 +12,6 @@ export const updateAutoScan = (enabled: boolean) => {
 
     if (!enabled) return;
 
-    // Only directories whose mtime changed since the last scan are re-read (see scanFiles.ts)
     autoScanInterval = setInterval(() => {
         try {
             scanMediaFilesIncremental();

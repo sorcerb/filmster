@@ -74,6 +74,8 @@ const et: Messages = {
     'details.backToLibrary': 'Tagasi teeki',
     'details.findPoster': 'Leia poster',
     'details.noDescription': 'Kirjeldus puudub',
+    'details.cast': 'Osades',
+    'details.directors': 'Režissöör',
     'details.findDescription': 'Leia kirjeldus',
     'details.fileInformation': 'Faili teave',
     'details.fileName': 'Faili nimi',

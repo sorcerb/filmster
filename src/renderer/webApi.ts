@@ -1,24 +1,16 @@
 import type { ElectronAPI } from '../preload/preload';
 import { isLanguage, Language, resolveLanguage } from '../shared/i18n';
 
-// In a browser on the local network (the app served by main/webServer.ts) there is no preload:
-// window.electron is replaced by the same API over HTTP. Actions on the host (settings, library
-// folders, opening files) are not available there; the server refuses them anyway.
-
 export const isWebClient = !window.electron;
 
-// Identifies this tab to the server: its events, player transcode and subtitles.
 // crypto.randomUUID needs a secure context (https), which a LAN address isn't.
 const clientId = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-// Media URL prefix, followed by the query (path=...)
 export const MEDIA_URL_BASE = isWebClient ? `/media?client=${clientId}&` : 'media://local/?';
 
-// Called when the server asks for the PIN (e.g. it was changed on the host)
 let unauthorizedHandler: (() => void) | null = null;
 export const onUnauthorized = (handler: () => void) => { unauthorizedHandler = handler; };
 
-// Poster URLs from the host point at its poster:// protocol
 const POSTER_PREFIX = 'poster://local/';
 const reviveJson = (_key: string, value: unknown) =>
     typeof value === 'string' && value.startsWith(POSTER_PREFIX) ? `/poster/${value.slice(POSTER_PREFIX.length)}` : value;
@@ -47,15 +39,12 @@ export const login = (pin: string) => request<boolean>('/api/login', {
     body: JSON.stringify([pin]),
 });
 
-// --- Events: one EventSource per tab, fanned out like the preload's subscribe ---
-
 const listeners = new Map<string, Set<(...args: any[]) => void>>();
 let eventSource: EventSource | null = null;
 
 // Started once authorized, so the server knows the tab before its player asks for subtitles
 export const connectEvents = () => {
     if (eventSource) return;
-    // Reconnects by itself after network errors
     eventSource = new EventSource(`/api/events?client=${clientId}`);
     eventSource.onmessage = (event) => {
         const { channel, args } = JSON.parse(event.data, reviveJson);
@@ -72,7 +61,6 @@ const subscribe = <T extends unknown[]>(channel: string) => (callback: (...args:
 
 const notAvailable = (): Promise<never> => Promise.reject(new Error('Not available over the network'));
 
-// The language is per browser
 const LANGUAGE_STORAGE_KEY = 'language';
 
 const webApi: ElectronAPI = {
@@ -88,7 +76,8 @@ const webApi: ElectronAPI = {
     updateApiSettings: notAvailable,
     getMetadataProviders: () => call('get-metadata-providers'),
     getFilmImages: (film) => call('metadata-images', film),
-    loadMissingBackdrop: (metadataId) => call('metadata-load-backdrop', metadataId),
+    loadMissingDetails: (metadataId) => call('metadata-load-missing', metadataId),
+    getFilmCredits: (film) => call('metadata-credits', film),
     searchMetadata: (provider, keyword) => call('metadata-search', provider, keyword),
     findMetadataFilm: (parsedName, year) => call('metadata-find-film', parsedName, year),
     getFilmDetails: (film) => call('metadata-film-details', film),
@@ -114,14 +103,12 @@ const webApi: ElectronAPI = {
     openFile: notAvailable,
 
     getAutoScan: () => Promise.resolve(false),
-    // Videos can only be played in the browser
     getPlayerType: () => Promise.resolve('internal'),
     setPlayerType: () => Promise.resolve(),
     setAutoScan: notAvailable,
     getLanguage: async (): Promise<Language> => {
         const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
         if (isLanguage(saved)) return saved;
-        // The host's language, or the browser's before the PIN is entered
         return call<Language>('get-language').catch(() => resolveLanguage(navigator.language));
     },
     setLanguage: async (language) => { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); },
@@ -149,7 +136,6 @@ const webApi: ElectronAPI = {
     setAutoSkipIntro: (seriesName, enabled) => call('set-auto-skip-intro', seriesName, enabled),
     getAutoSkipIntroDefault: notAvailable,
     setAutoSkipIntroDefault: notAvailable,
-    // Cues come as events
     startSubtitles: (subtitleRequest) => call('start-subtitles', subtitleRequest),
     stopSubtitles: (id) => call('stop-subtitles', id),
     onSubtitleCues: subscribe('subtitle-cues'),
@@ -169,6 +155,6 @@ const webApi: ElectronAPI = {
 
 if (isWebClient) {
     window.electron = webApi;
-    // Tab and bookmark name; not in index.html, where it would replace the app window title (it has the version)
+    // Not in index.html: there it would replace the app window title (which has the version)
     document.title = 'Filmster';
 }

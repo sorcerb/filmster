@@ -74,6 +74,8 @@ const cs: Messages = {
     'details.backToLibrary': 'Zpět do knihovny',
     'details.findPoster': 'Najít plakát',
     'details.noDescription': 'Bez popisu',
+    'details.cast': 'Hrají',
+    'details.directors': 'Režie',
     'details.findDescription': 'Najít popis',
     'details.fileInformation': 'Informace o souboru',
     'details.fileName': 'Název souboru',

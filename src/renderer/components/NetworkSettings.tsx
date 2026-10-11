@@ -3,7 +3,6 @@ import { LoaderCircle } from 'lucide-react';
 import type { WebServerStatus } from '../../main/webServer';
 import { useI18n } from '../i18n/I18nProvider';
 
-// Network access: the library opened in a browser on other devices (main/webServer.ts)
 const NetworkSettings = () => {
     const { t } = useI18n();
     const [status, setStatus] = useState<WebServerStatus | null>(null);

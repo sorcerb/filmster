@@ -51,9 +51,7 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
 
 const decodeDataUrl = (dataUrl: string): Buffer => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
 
-// Backdrop file: <id>_backdrop.<ext>, next to the posters
 const BACKDROP_SUFFIX = '_backdrop';
-// Backdrops found automatically must be landscape and wide enough: none is better than a stretched blur
 const MIN_BACKDROP_WIDTH = 1000;
 const MIN_BACKDROP_RATIO = 1.3;
 
@@ -64,7 +62,6 @@ const isBackdropSize = (image: Buffer): boolean => {
     return width >= MIN_BACKDROP_WIDTH && width / height >= MIN_BACKDROP_RATIO;
 };
 
-// Saves the backdrop from a provider URL or a JPEG data URL; false if checkSize rejects it
 export async function saveBackdrop(metadataId: string, url: string, checkSize: boolean): Promise<boolean> {
     const isDataUrl = url.startsWith('data:');
     const image = isDataUrl ? decodeDataUrl(url) : await fetchImage(url);
@@ -83,7 +80,6 @@ const removeBackdrop = (metadataId: string) => {
     posterIndex = null;
 };
 
-// Sets noBackdrop / backdropCheckedAt of the metadata to what was done
 async function applyBackdropChange(metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, change: BackdropChange) {
     if (change.kind === 'keep') return;
     delete metadata.noBackdrop;
@@ -129,7 +125,6 @@ export async function saveMetadata(
     if (fs.existsSync(metadataPath)) {
         fs.unlinkSync(metadataPath);
     }
-    // The backdrop URL is the file's one, set when loading
     const { backdropUrl: _backdropUrl, ...storedMetadata } = metadata;
     fs.writeFileSync(metadataPath, JSON.stringify(storedMetadata, null, 2), 'utf-8');
 
@@ -185,19 +180,17 @@ export async function saveMetadata(
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 
-// Extension from URL path (ignoring query/hash), falling back to .jpg for unknown/missing ones
 function getImageExt(url: string): string {
     let pathname = url;
     try {
         pathname = new URL(url).pathname;
     } catch {
-        // not a valid URL, use as is
+        // Not a valid URL, used as is
     }
     const ext = path.extname(pathname).toLowerCase();
     return IMAGE_EXTENSIONS.includes(ext) ? ext : '.jpg';
 }
 
-// Remove previously saved posters with this name (may have a different extension)
 function removePosters(posterName: string) {
     for (const ext of IMAGE_EXTENSIONS) {
         const filePath = path.join(getPostersFolder(), `${posterName}${ext}`);
@@ -209,10 +202,8 @@ function removePosters(posterName: string) {
 
 type LoadedMetadata = MovieMetadata & { posterUrl?: string; posterUrlPreview?: string; backdropUrl?: string };
 
-// Metadata and the poster file list are read from disk once and kept in memory;
-// saveMetadata() invalidates them. Keys are lower-cased: Windows file names are case-insensitive.
+// Keys are lower-cased: Windows file names are case-insensitive.
 const metadataCache = new Map<string, LoadedMetadata | null>();
-// lower-cased poster name (without extension) -> file name
 let posterIndex: Map<string, string> | null = null;
 
 function getPosterIndex(): Map<string, string> {
@@ -231,7 +222,7 @@ function getPosterIndex(): Map<string, string> {
     return posterIndex;
 }
 
-// poster:// URL (served by mediaProtocol) with the file mtime as version, so the renderer can cache the image until it changes
+// mtime as version, so the renderer can cache the image until it changes
 function getPosterUrl(posterPath: string | null): string | undefined {
     if (!posterPath) return undefined;
     try {
@@ -278,10 +269,8 @@ export function getBackdropPath(metadataId: string): string | null {
     return backdropFile ? path.join(getPostersFolder(), backdropFile) : null;
 }
 
-// Metadata id a metadata, poster or backdrop file name (without extension) belongs to
 export const getMetadataIdOfFile = (name: string): string => name.replace(/_(preview|backdrop)$/i, '');
 
-// Metadata (<id>.json), poster (<id>.jpg, <id>_preview.jpg...) and backdrop (<id>_backdrop.jpg) file names in the metadata folder
 export function listMetadataFiles(): string[] {
     const folder = getMetadataFolder();
     if (!fs.existsSync(folder)) return [];

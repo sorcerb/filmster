@@ -23,7 +23,7 @@ export type Language = keyof typeof locales;
 
 export const DEFAULT_LANGUAGE: Language = 'en';
 
-// Native names, shown in the language picker; sorted by code so Cyrillic names don't end up last
+// Sorted by code so Cyrillic names don't end up last
 export const LANGUAGES: { code: Language; name: string }[] = [
     { code: 'cs', name: 'Čeština' },
     { code: 'de', name: 'Deutsch' },
@@ -43,7 +43,6 @@ export const LANGUAGES: { code: Language; name: string }[] = [
     { code: 'uk', name: 'Українська' },
 ];
 
-// Interface languages written in Cyrillic, where converting typed Latin text makes sense
 const CYRILLIC_LANGUAGES: Language[] = ['ru', 'uk'];
 
 export const isCyrillicLanguage = (language: Language): boolean => CYRILLIC_LANGUAGES.includes(language);
@@ -51,7 +50,6 @@ export const isCyrillicLanguage = (language: Language): boolean => CYRILLIC_LANG
 export const isLanguage =(value: unknown): value is Language =>
     typeof value === 'string' && value in locales;
 
-// Maps a system locale like "ru-RU" to a supported language
 export const resolveLanguage = (locale: string | undefined): Language => {
     const code = locale?.toLowerCase().split(/[-_]/)[0];
     return isLanguage(code) ? code : DEFAULT_LANGUAGE;

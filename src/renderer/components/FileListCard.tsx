@@ -12,7 +12,6 @@ const FileListCard = ({ item, isGrouped = false }: FileListCardProps) => {
     const { t } = useI18n();
     const file = isGrouped && item.episodes?.[0] ? item.episodes[0] : item;
     const { getProgress } = useWatchProgress(30000);
-    // User groups (home page) these files belong to
     const groupNames = Array.from(new Set((isGrouped && item.episodes ? item.episodes : [file])
         .map(f => f.groupName)
         .filter((name): name is string => !!name)));

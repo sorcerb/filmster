@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { CustomLink, getCustomLinkUrl, isCustomLinkUrl } from '../models/CustomLink';
 
-// Links are outlined, unlike the filled genre and quality tags
-export const LINK_PILL_CLASS = 'flex items-center gap-1.5 px-3 py-1 border border-neutral-600 text-neutral-300 rounded-full text-xs hover:border-neutral-400 hover:text-white transition-colors';
+export const LINK_PILL_CLASS = 'flex items-center gap-1.5 px-3 py-1 bg-neutral-900/60 border border-white/15 backdrop-blur-md text-neutral-200 rounded-full text-xs hover:border-white/40 hover:text-white transition-colors';
 
 interface CustomLinkButtonsProps {
     title: string;
 }
 
-// The links from Settings, searching for the title
 const CustomLinkButtons = ({ title }: CustomLinkButtonsProps) => {
     const [links, setLinks] = useState<CustomLink[]>([]);
 

@@ -1,5 +1,3 @@
-// A user's link to another site, e.g. a tracker search. {title} in the URL is replaced
-// with the movie's title; without it the title is added to the end.
 export interface CustomLink {
     name: string;
     url: string;

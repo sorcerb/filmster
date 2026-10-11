@@ -1,13 +1,9 @@
 import { MediaFileModel, MediaType } from '../models/MediaFileModel';
 
-// Members of a user group go by year, then title. The first one is the group card
-// and gives the group its name (unless the user renamed it).
-
 const getYear = (file: MediaFileModel) => file.metadata?.year || file.year || 9999;
 
 export const getMediaTitle = (file: MediaFileModel) => file.metadata?.title || file.parsedName;
 
-// Movies and series (by name) in a group: the blocks shown on its details page
 export const countGroupItems = (files: MediaFileModel[]) =>
     new Set(files.map(file => file.type === MediaType.Series ? `series:${file.parsedName}` : file.id)).size;
 
@@ -18,7 +14,6 @@ export const compareGroupMembers = (a: MediaFileModel, b: MediaFileModel) =>
     || (a.episode ?? 0) - (b.episode ?? 0)
     || a.fullPath.localeCompare(b.fullPath);
 
-// Displayed name of every user group among the files (group id -> name), as on the home page group card
 export const getGroupNames = (files: MediaFileModel[]): Map<string, string> => {
     const members = new Map<string, MediaFileModel[]>();
     files.forEach(file => {

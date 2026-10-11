@@ -74,6 +74,8 @@ const ru: Messages = {
     'details.backToLibrary': 'Назад в медиатеку',
     'details.findPoster': 'Найти постер',
     'details.noDescription': 'Нет описания',
+    'details.cast': 'В ролях',
+    'details.directors': 'Режиссёр',
     'details.findDescription': 'Найти описание',
     'details.fileInformation': 'Информация о файле',
     'details.fileName': 'Имя файла',

@@ -5,8 +5,6 @@ import { pruneDurationCache } from '../renderer/stores/DurationCacheStore';
 import { pruneEpisodeMarkers } from './episodeMarkers';
 import { getAllMediaFiles, scanEvents } from './scanFiles';
 
-// Removes what was saved for files that left the library: metadata, posters and backdrops of titles no file uses any more,
-// durations and episode markers of files that are gone. Runs on startup and after scans that changed something.
 // Metadata is kept for a week after it became unused: a library folder removed by mistake or renamed files
 // get their posters and hand-made corrections back when they return.
 
@@ -14,7 +12,6 @@ const METADATA_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 const STARTUP_DELAY_MS = 30 * 1000;
 const AFTER_SCAN_DELAY_MS = 10 * 1000;
 
-// Lower-cased metadata file name -> when it was first seen unused
 const store = new Store<{ unusedSince: Record<string, number> }>({
     name: 'GarbageCollector',
     defaults: {

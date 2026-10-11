@@ -1,35 +1,37 @@
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { ApiSettings } from '../renderer/models/ApiSettings';
-import { MoveDbMediaSource, MovieMetadata } from '../renderer/models/MediaMetadata';
+import { MoveDbMediaSource, MovieMetadata, Person } from '../renderer/models/MediaMetadata';
 
 export type MetadataProvider = 'tmdb' | 'kinopoisk';
 
 export const METADATA_PROVIDERS: MetadataProvider[] = ['tmdb', 'kinopoisk'];
 
-// Lists of the "New releases" page
 export type NewsSection = 'trending' | 'nowPlaying' | 'upcoming' | 'series';
 
 export const NEWS_SECTIONS: NewsSection[] = ['trending', 'nowPlaying', 'upcoming', 'series'];
 
-// A title in a news list: the search result plus the release date (YYYY-MM-DD) where the provider has it
+// releaseDate: YYYY-MM-DD
 export interface NewsItem extends MovieSearchResult {
     releaseDate?: string;
 }
 
-// One of the film's posters, as listed by the provider
 export interface PosterImage {
     url: string;
     previewUrl: string;
 }
 
-// Posters and backdrops (wide background pictures) of the film, as listed by the provider
+export interface FilmCredits {
+    directors: Person[];
+    actors: Person[];
+}
+
+export const CAST_LIMIT = 20;
+
 export interface FilmImages {
     posters: PosterImage[];
     backdrops: PosterImage[];
 }
 
-// What saving metadata does with the backdrop: the selected movie's one (automatic loading; none removes the old one),
-// keep the saved one, an image picked in the editor (provider URL or own JPEG data URL), or none (also stops the lookup)
 export type BackdropChange = { kind: 'movie' } | { kind: 'keep' } | { kind: 'image'; url: string } | { kind: 'none' };
 
 export const isBackdropChange = (value: unknown): value is BackdropChange => {
@@ -39,7 +41,6 @@ export const isBackdropChange = (value: unknown): value is BackdropChange => {
     return kind === 'movie' || kind === 'keep' || kind === 'none';
 };
 
-// Own poster picked in the metadata editor: JPEG data URLs, scaled down by the renderer
 export interface CustomPoster {
     poster: string;
     preview: string;
@@ -50,10 +51,8 @@ export const isCustomPoster = (value: unknown): value is CustomPoster => {
     return typeof value === 'object' && value !== null && isJpeg((value as CustomPoster).poster) && isJpeg((value as CustomPoster).preview);
 };
 
-// Used by the main process with net.fetch (the renderer goes through IPC)
 export type FetchFn = (url: string, init?: { method?: string; headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
-// Errors that won't go away on the next query (bad key, quota exceeded)
 export class MetadataApiError extends Error {
     constructor(public provider: MetadataProvider, public status: number) {
         super(`${provider} API error ${status}`);
@@ -63,7 +62,6 @@ export class MetadataApiError extends Error {
 export const getProviderApiKey = (provider: MetadataProvider, settings: ApiSettings | undefined): string =>
     ((provider === 'tmdb' ? settings?.apiKeyTheMovieDb : settings?.apiKeyKinopoisk) ?? '').trim();
 
-// Not chosen yet: Kinopoisk (as before TMDB support), unless only the TMDB key is set
 export const getDefaultProvider = (settings: ApiSettings | undefined): MetadataProvider => {
     if (settings?.defaultProvider && METADATA_PROVIDERS.includes(settings.defaultProvider)) return settings.defaultProvider;
     return !getProviderApiKey('kinopoisk', settings) && getProviderApiKey('tmdb', settings) ? 'tmdb' : 'kinopoisk';
@@ -72,7 +70,6 @@ export const getDefaultProvider = (settings: ApiSettings | undefined): MetadataP
 export const getMediaType = (film: MovieSearchResult): MovieMetadata['type'] =>
     ['TV_SERIES', 'MINI_SERIES', 'TV_SHOW'].includes(film.type) ? 'series' : 'movie';
 
-// Page of the title on the provider's site; TMDB has separate paths for movies and series
 export const getProviderFilmUrl = (meta: MovieMetadata, fallbackType: MovieMetadata['type']): string | null => {
     const { kinopoisk, tmdb } = meta.externalIds ?? {};
     if (kinopoisk) return `https://www.kinopoisk.ru/film/${encodeURIComponent(kinopoisk)}/`;

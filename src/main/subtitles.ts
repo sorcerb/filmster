@@ -9,7 +9,6 @@ const ffmpegPath = app.isPackaged
     ? path.join(process.resourcesPath, 'ffmpeg.exe')
     : path.join(__dirname, '../../bin/ffmpeg.exe');
 
-// Text formats ffmpeg can convert to WebVTT; bitmap subtitles (PGS, VobSub, DVB) can't be shown as text
 const TEXT_SUBTITLE_CODECS = new Set(['subrip', 'srt', 'ass', 'ssa', 'webvtt', 'mov_text', 'text', 'microdvd']);
 const SUBTITLE_EXTENSIONS = new Set(['.srt', '.ass', '.ssa', '.vtt']);
 
@@ -24,7 +23,6 @@ export const getEmbeddedSubtitles = (streams: any[]): SubtitleTrackInfo[] => str
         isForced: s.disposition?.forced === 1,
     }));
 
-// Subtitle files next to the video whose name starts with the video's name: Movie.srt, Movie.rus.srt, Movie_eng.ass
 export const getExternalSubtitles = async (videoPath: string): Promise<SubtitleTrackInfo[]> => {
     const dir = path.dirname(videoPath);
     const baseName = path.parse(videoPath).name.toLowerCase();
@@ -82,12 +80,10 @@ const stopExtraction = (key: string) => {
     activeExtractions.delete(key);
 };
 
-// A browser closed its connection
 export const stopClientSubtitles = (clientId: string) => {
     [...activeExtractions.keys()].filter(key => key.startsWith(`${clientId}:`)).forEach(stopExtraction);
 };
 
-// Streams cues of one subtitle track as WebVTT from `from` seconds (embedded tracks) until a cue starts at `until`.
 // Embedded tracks are interleaved through the whole file, so reading them all at once would mean reading
 // gigabytes (slow over network) - the player requests windows around the playback position instead.
 const startExtraction = async (client: RpcClient, request: SubtitleRequest) => {

@@ -1,5 +1,4 @@
 // Base locale: every other locale must define the same keys.
-// Placeholders in braces ({count}) are filled in by translate().
 const en = {
     'nav.files': 'Files',
     'nav.scan': 'Scan',
@@ -74,6 +73,8 @@ const en = {
     'details.backToLibrary': 'Back to library',
     'details.findPoster': 'Find poster',
     'details.noDescription': 'No description',
+    'details.cast': 'Cast',
+    'details.directors': 'Directed by',
     'details.findDescription': 'Find description',
     'details.fileInformation': 'File Information',
     'details.fileName': 'File Name',

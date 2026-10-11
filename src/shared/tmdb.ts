@@ -1,10 +1,11 @@
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { latinToCyrillic } from '../renderer/utils/transliteration';
-import { FetchFn, FilmImages, MetadataApiError, NewsItem, NewsSection } from './metadataApi';
+import { Person } from '../renderer/models/MediaMetadata';
+import { CAST_LIMIT, FetchFn, FilmCredits, FilmImages, MetadataApiError, NewsItem, NewsSection } from './metadataApi';
 
-// The Movie DB API v3: https://developer.themoviedb.org/reference
 const API_URL = 'https://api.themoviedb.org/3';
 const IMAGE_URL = 'https://image.tmdb.org/t/p';
+const PERSON_URL = 'https://www.themoviedb.org/person';
 
 type MediaType = 'movie' | 'tv';
 
@@ -26,7 +27,6 @@ const request = async (apiPath: string, params: Record<string, string>, apiKey: 
     return JSON.parse(await response.text());
 };
 
-// Search results have genre ids only; the names (in the app language) are loaded once per language
 const genreCache = new Map<string, Promise<Map<number, string>>>();
 
 const getGenres = (language: string, apiKey: string, fetchFn: FetchFn): Promise<Map<number, string>> => {
@@ -40,7 +40,6 @@ const getGenres = (language: string, apiKey: string, fetchFn: FetchFn): Promise<
     return genres;
 };
 
-// Search, find and details items -> the search result shape shared with Kinopoisk.
 // nameRu holds the title in the app language, nameEn the original title.
 const toSearchResult = (item: any, mediaType: MediaType, genres: Map<number, string>): MovieSearchResult => {
     const isMovie = mediaType === 'movie';
@@ -67,7 +66,6 @@ const toSearchResult = (item: any, mediaType: MediaType, genres: Map<number, str
     };
 };
 
-// Movies and series in one list; people and entries without a poster are skipped
 const searchMulti = async (query: string, language: string, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult[]> => {
     const data = await request('/search/multi', { query, language, include_adult: 'false', page: '1' }, apiKey, fetchFn);
     const results: any[] = (data?.results ?? []).filter((item: any) => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path);
@@ -76,7 +74,7 @@ const searchMulti = async (query: string, language: string, apiKey: string, fetc
     return results.map(item => toSearchResult(item, item.media_type, genres));
 };
 
-// Results of the given year first (stable: TMDB's relevance order is kept otherwise)
+// Stable sort: TMDB's relevance order is kept otherwise
 const preferYear = (films: MovieSearchResult[], year: number | undefined): MovieSearchResult[] =>
     year ? [...films].sort((a, b) => Number(b.year === String(year)) - Number(a.year === String(year))) : films;
 
@@ -85,7 +83,6 @@ const getTrailingYear = (name: string): number | undefined => {
     return match ? parseInt(match[1]) : undefined;
 };
 
-// Fallback chain: full name -> without trailing year -> transliterated name.
 // TMDB search has no year in the query, so the year picks among the results.
 export const findTmdbFilm = async (parsedName: string, year: number | undefined, language: string, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult | null> => {
     const nameTrimmed = parsedName.trim();
@@ -116,8 +113,6 @@ const findByImdbId = async (imdbId: string, language: string, apiKey: string, fe
     ];
 };
 
-// Manual search: a TMDB link (themoviedb.org/movie/123, /tv/123) or IMDb ID/link (tt0133093) loads that title,
-// otherwise fallback chain: full query -> without trailing year -> first word only
 export const searchTmdbFilms = async (keyword: string, language: string, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult[]> => {
     const linkMatch = keyword.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
     if (linkMatch) {
@@ -141,8 +136,6 @@ export const searchTmdbFilms = async (keyword: string, language: string, apiKey:
     return [];
 };
 
-// All posters and backdrops of the title: in the app language, English and without text (TMDB orders them by votes);
-// backdrops without text first, they suit a background best
 export const fetchTmdbImages = async (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<FilmImages> => {
     const mediaType: MediaType = film.type === 'FILM' ? 'movie' : 'tv';
     const imageLanguage = [...new Set([language.split('-')[0], 'en', 'null'])].join(',');
@@ -161,7 +154,24 @@ export const fetchTmdbImages = async (film: MovieSearchResult, language: string,
     };
 };
 
-// Full details of a title (genres and countries, which list items don't all have)
+// Directors only for movies: series have one per episode
+export const fetchTmdbCredits = async (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<FilmCredits> => {
+    const isMovie = film.type === 'FILM';
+    const data = await request(isMovie ? `/movie/${film.filmId}/credits` : `/tv/${film.filmId}/aggregate_credits`, { language }, apiKey, fetchFn);
+    const toPerson = (person: any, role: Person['role'], character?: string): Person => ({
+        id: String(person.id),
+        name: person.name,
+        role,
+        character: character || undefined,
+        photoUrl: person.profile_path ? `${IMAGE_URL}/w185${person.profile_path}` : undefined,
+        profileUrl: `${PERSON_URL}/${person.id}`,
+    });
+    return {
+        directors: isMovie ? (data?.crew ?? []).filter((person: any) => person.job === 'Director').map((person: any) => toPerson(person, 'director')) : [],
+        actors: (data?.cast ?? []).slice(0, CAST_LIMIT).map((person: any) => toPerson(person, 'actor', person.character ?? person.roles?.[0]?.character)),
+    };
+};
+
 export const fetchTmdbDetails = (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult | null> =>
     fetchDetails(film.type === 'FILM' ? 'movie' : 'tv', String(film.filmId), language, apiKey, fetchFn);
 
@@ -182,7 +192,6 @@ const getNewsList = (section: NewsSection): { path: string; mediaType: MediaType
     }
 };
 
-// First page (20 titles) of the list; titles without a poster are skipped
 export const fetchTmdbNews = async (section: NewsSection, language: string, apiKey: string, fetchFn: FetchFn): Promise<NewsItem[]> => {
     const { path, mediaType, params } = getNewsList(section);
     const data = await request(path, { language, page: '1', include_adult: 'false', ...params }, apiKey, fetchFn);

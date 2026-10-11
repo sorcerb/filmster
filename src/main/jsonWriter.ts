@@ -1,10 +1,6 @@
 import { app } from 'electron';
 import { renameSync, writeFileSync } from 'fs';
 
-// Batches frequent saves of a JSON file into one write after a quiet period.
-// Writes go to a temp file and are renamed over the target, so a crash never leaves a half-written file.
-// Pending writes are flushed when the app quits.
-
 export interface JsonWriter {
     schedule(): void;
     flush(): void;

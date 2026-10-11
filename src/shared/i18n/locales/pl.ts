@@ -74,6 +74,8 @@ const pl: Messages = {
     'details.backToLibrary': 'Powrót do biblioteki',
     'details.findPoster': 'Znajdź plakat',
     'details.noDescription': 'Brak opisu',
+    'details.cast': 'Obsada',
+    'details.directors': 'Reżyseria',
     'details.findDescription': 'Znajdź opis',
     'details.fileInformation': 'Informacje o pliku',
     'details.fileName': 'Nazwa pliku',

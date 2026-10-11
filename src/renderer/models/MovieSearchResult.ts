@@ -1,7 +1,6 @@
 import type { MetadataProvider } from '../../shared/metadataApi';
 
 export interface MovieSearchResult {
-    // Missing in Kinopoisk keyword search results
     source?: MetadataProvider;
     filmId: number;
     // Kinopoisk: Russian / English title; TMDB: title in the app language / original title
@@ -17,6 +16,5 @@ export interface MovieSearchResult {
     ratingVoteCount: number;
     posterUrl: string;
     posterUrlPreview: string;
-    // Wide background picture: TMDB backdrop, Kinopoisk cover (details only, keyword search results have none)
     backdropUrl?: string;
 }

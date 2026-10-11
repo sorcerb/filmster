@@ -1,20 +1,15 @@
 import { MediaFileModel } from '../models/MediaFileModel';
 import { LibraryFileProgress } from '../models/WatchProgressModel';
 
-// "Continue watching" row of the home page, built from home page cards (movies, series, groups)
-
 export interface ContinueWatchingEntry {
-    // Card the entry belongs to
     item: MediaFileModel;
-    // File to play
     file: MediaFileModel;
     progress?: LibraryFileProgress;
-    // The file after the last finished one (next episode / next movie of a group)
     isNext: boolean;
     lastWatched: string;
 }
 
-// A file stopped earlier than this (seconds) was most likely opened by accident or rewound: it counts as not watched
+// Seconds
 const MIN_POSITION = 60;
 const FINISHED_PERCENT = 0.95;
 const MAX_ENTRIES = 20;
@@ -25,7 +20,6 @@ const isFinished = (progress: LibraryFileProgress) =>
 const isWatched = (progress: LibraryFileProgress | undefined): progress is LibraryFileProgress =>
     !!progress && (isFinished(progress) || progress.position >= MIN_POSITION);
 
-// Groups come already ordered (year, title, episode); series episodes are ordered here
 const getPlayOrder = (item: MediaFileModel): MediaFileModel[] => {
     if (!item.episodes?.length) return [item];
     if (item.groupId) return item.episodes;
@@ -41,7 +35,6 @@ export const getContinueWatching = (items: MediaFileModel[], progress: Record<st
     for (const item of items) {
         const files = getPlayOrder(item);
 
-        // The file watched last decides: unfinished - continue it, finished - offer the next one
         let latestIndex = -1;
         files.forEach((file, index) => {
             const fileProgress = progress[file.fullPath];

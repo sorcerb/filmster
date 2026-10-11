@@ -19,7 +19,6 @@ const formatDuration = (seconds: number): string => {
 
 const getFileName = (filePath: string) => filePath.split('\\').pop()?.toLowerCase() || '';
 
-// Watch progress and playback for the player selected in Settings
 export const useWatchProgress = (refreshInterval: number) => {
     const navigate = useNavigate();
     const [playerType, setPlayerType] = useState<PlayerType>('external');
@@ -57,7 +56,6 @@ export const useWatchProgress = (refreshInterval: number) => {
         return null;
     }, [playerType, internalProgress, mpcHistory]);
 
-    // `useOtherPlayer` (Ctrl+click) opens the player not selected in Settings
     const play = useCallback(async (file: { id: string; fullPath: string }, useOtherPlayer = false) => {
         const internal = (playerType === 'internal') !== useOtherPlayer;
         if (internal) {

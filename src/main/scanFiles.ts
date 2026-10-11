@@ -30,10 +30,8 @@ const SCAN_CACHE_VERSION = 1;
 // Bumped when the name parser starts reading more from file names: cached files are re-parsed, keeping when they were added
 const PARSER_VERSION = 2;
 let scanCache: ScanCache | null = null;
-// Files that appeared since the previous scan
 let addedFiles: MediaFileModel[] = [];
 
-// "changed" ({ added: MediaFileModel[] }) is emitted after a scan that updated the stored media list
 export const scanEvents = new EventEmitter();
 
 const getScanCachePath = () => join(app.getPath('userData'), 'scan-cache.json');
@@ -62,7 +60,6 @@ const loadScanCache = (): ScanCache => {
     return scanCache;
 };
 
-// While a series is downloading the cache changes every auto-scan tick, so writes are batched
 const scanCacheWriter = createJsonWriter(getScanCachePath, () => scanCache, 3000);
 
 const withTrailingSep = (p: string) => p.endsWith(path.sep) ? p : p + path.sep;
@@ -105,7 +102,6 @@ const isDirectoryEntry = (entry: Dirent, fullPath: string): boolean => {
     }
 };
 
-// Reads one directory (no recursion). Files known from the previous entry are not re-parsed.
 const readDirectory = (dirPath: string, baseFolder: string, parentFolder: string, mtimeMs: number, patterns: RegexPatterns, previous: DirCacheEntry | undefined, reparse: boolean): DirCacheEntry => {
     const entry: DirCacheEntry = { mtimeMs, subDirs: [], files: [] };
     const previousFiles = new Map((previous?.files || []).map(f => [f.id, f]));
@@ -140,8 +136,6 @@ const readDirectory = (dirPath: string, baseFolder: string, parentFolder: string
     return entry;
 };
 
-// Walks a library folder. With force=false only directories whose mtime changed are re-read,
-// the rest costs one stat() per directory. Returns true when something changed.
 const scanLibraryFolder = (rootPath: string, patterns: RegexPatterns, force: boolean): boolean => {
     const cache = loadScanCache();
     const patternsKey = getPatternsKey(patterns);
@@ -172,7 +166,6 @@ const scanLibraryFolder = (rootPath: string, patterns: RegexPatterns, force: boo
 
     walk(rootPath, '');
 
-    // Drop entries of directories that no longer exist under this library folder
     for (const dir of Object.keys(cache.dirs)) {
         if (isInsideFolder(dir, rootPath) && !visited.has(dir)) {
             delete cache.dirs[dir];
@@ -186,7 +179,6 @@ const scanLibraryFolder = (rootPath: string, patterns: RegexPatterns, force: boo
 
 const getPatternsKey = (patterns: RegexPatterns) => `${PARSER_VERSION}:${JSON.stringify(patterns)}`;
 
-// Marks the cache as built with the given patterns (after all library folders were walked)
 const commitPatterns = (patterns: RegexPatterns) => {
     const patternsKey = getPatternsKey(patterns);
     if (scanCache && scanCache.patternsKey !== patternsKey) {
@@ -201,7 +193,6 @@ const emitChanged = () => {
     scanEvents.emit('changed', { added });
 };
 
-// Full scan ("Scan" button): re-reads every directory, unchanged files are not re-parsed
 export const scanMediaFile = () => {
     try {
         const libraryFolders = getLibraryFolders();
@@ -212,7 +203,6 @@ export const scanMediaFile = () => {
             scanLibraryFolder(folder.path, patterns, true);
         }
 
-        // Forget folders that were removed from the library
         const cache = loadScanCache();
         for (const dir of Object.keys(cache.dirs)) {
             if (!libraryFolders.some(folder => isInsideFolder(dir, folder.path))) {
@@ -230,8 +220,6 @@ export const scanMediaFile = () => {
     }
 };
 
-// Incremental scan (auto-scan): stats directories and re-reads only the changed ones.
-// Returns true when the media list changed.
 export const scanMediaFilesIncremental = (): boolean => {
     const patterns = getPatterns();
     let changed = false;
@@ -248,8 +236,6 @@ export const scanMediaFilesIncremental = (): boolean => {
     return changed;
 };
 
-// Media files of the current library folders, as of the last scan.
-// Folders that are temporarily unavailable (e.g. a disconnected drive) keep their files.
 export const getAllMediaFiles = (): MediaFileModel[] => {
     const cache = loadScanCache();
     const libraryFolders = getLibraryFolders();
@@ -258,7 +244,6 @@ export const getAllMediaFiles = (): MediaFileModel[] => {
         .flatMap(([, entry]) => entry.files);
 };
 
-// Stored values equal to a previous default are upgraded to the current default
 export const getPatterns = (): RegexPatterns => {
     try {
         const patterns: RegexPatterns = { ...DEFAULT_REGEX_PATTERNS, ...getRegexPatterns() };

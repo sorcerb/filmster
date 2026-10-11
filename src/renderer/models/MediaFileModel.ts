@@ -29,7 +29,6 @@ export interface MediaFileModel {
     year?: number;
     season?: number;
     episode?: number;
-    // Episode title from the file name, if it has one
     episodeTitle?: string;
     resolution?: string;
     quality?: string;
@@ -41,10 +40,7 @@ export interface MediaFileModel {
     episodesBySeason?: Record<number, MediaFileModel[]>;
     metadata?: MovieMetadata | null;
     selectedMovie?: any;
-    // User-made group (see MediaGroupsStore)
     groupId?: string;
-    // Name given by the user; on the home page group card: the displayed name
     groupName?: string;
-    // Home page group card: member types, a mixed group counts as both
     groupTypes?: MediaType[];
 }

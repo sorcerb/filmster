@@ -29,6 +29,25 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: #555;
 }
+/* Thin scrollbar of the cast row and column: no track, the thumb shows up brighter on hover */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(255 255 255 / 0.12);
+  border-radius: 2px;
+}
+
+.thin-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(255 255 255 / 0.3);
+}
+
 /* Built-in player: lift subtitles above the control bar while it's shown */
 .player-video::-webkit-media-text-track-container {
   transition: transform 0.3s;

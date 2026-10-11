@@ -5,7 +5,6 @@ import { isLanguage, Language, resolveLanguage } from '../../shared/i18n';
 const storeName = 'Language';
 const store = new Store<{ Language?: Language }>();
 
-// Until the user picks a language, follow the system locale
 export const getLanguage = (): Language => {
     const saved = store.get(storeName);
     return isLanguage(saved) ? saved : resolveLanguage(app.getLocale());

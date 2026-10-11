@@ -1,9 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-// FLIP animation for grid children marked with data-flip-key: when the list changes, moved items
-// slide from their old position to the new one (wrapping to the next row) and new items pop in.
-// Positions are layout offsets inside the container (it must be position: relative), so scrolling
-// and running transforms do not affect them.
+// Positions are layout offsets inside the container (it must be position: relative).
 
 const MOVE_DURATION_MS = 450;
 const ENTER_DURATION_MS = 350;
@@ -11,7 +8,6 @@ const EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
 
 type Position = { x: number; y: number };
 
-// Returns a callback ref for the grid container
 export const useFlipAnimation = (deps: unknown[]) => {
     const [container, setContainer] = useState<HTMLElement | null>(null);
     const positions = useRef(new Map<string, Position>());
@@ -33,7 +29,6 @@ export const useFlipAnimation = (deps: unknown[]) => {
 
         if (initialized.current) {
             current.forEach(({ el, pos }, key) => {
-                // An update during a running animation restarts it from the stored position
                 el.getAnimations().forEach(animation => animation.cancel());
                 const rect = el.getBoundingClientRect();
 
@@ -51,7 +46,6 @@ export const useFlipAnimation = (deps: unknown[]) => {
                 const dx = prev.x - pos.x;
                 const dy = prev.y - pos.y;
                 if (!dx && !dy) return;
-                // Skip items that are off screen both before and after the move
                 if (!isVisible(rect) && !isVisible(rect, dy)) return;
 
                 el.animate(
@@ -65,7 +59,6 @@ export const useFlipAnimation = (deps: unknown[]) => {
         initialized.current = current.size > 0;
     }, [container, ...deps]);
 
-    // Column count changes on resize: remember the new layout without animating it
     useEffect(() => {
         if (!container) return;
         const observer = new ResizeObserver(() => {
@@ -74,7 +67,6 @@ export const useFlipAnimation = (deps: unknown[]) => {
         observer.observe(container);
         return () => {
             observer.disconnect();
-            // The grid was unmounted (e.g. empty list): its next appearance is not animated
             initialized.current = false;
             positions.current = new Map();
         };

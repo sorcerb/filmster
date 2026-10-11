@@ -14,10 +14,7 @@ import { MovieMetadata } from '../renderer/models/MediaMetadata';
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { isBackdropChange, isCustomPoster, METADATA_PROVIDERS, NEWS_SECTIONS } from '../shared/metadataApi';
 
-// Serves the library to browsers on the local network: the renderer build as a web app,
-// POST /api/<channel> for the rpc handlers, GET /api/events (Server-Sent Events) for events,
-// GET /media (video) and /poster/<name>. Browsers get only what REMOTE_CHANNELS allows:
-// no settings, library folders, API key or actions on the host (opening files and folders).
+// Browsers get only what REMOTE_CHANNELS allows: no settings, library folders, API key or actions on the host (opening files and folders).
 
 const RENDERER_DIR = path.join(__dirname, '../renderer');
 const AUTH_COOKIE = 'filmster_auth';
@@ -48,7 +45,6 @@ const isSafeFileName = (name: unknown): boolean =>
 // Posters are downloaded by the host; anything but http(s) (e.g. file://) would read local files
 const isWebUrl = (url: unknown): boolean => url == null || (typeof url === 'string' && /^https?:\/\//i.test(url));
 
-// Gets the call arguments as sent (unchecked JSON)
 type ArgsCheck = (args: any) => boolean | Promise<boolean>;
 
 const REMOTE_CHANNELS: Record<string, ArgsCheck | true> = {
@@ -68,7 +64,8 @@ const REMOTE_CHANNELS: Record<string, ArgsCheck | true> = {
     'metadata-search': ([provider]) => provider === 'tmdb' || provider === 'kinopoisk',
     'metadata-find-film': true,
     'metadata-images': ([film]) => typeof film?.filmId === 'number',
-    'metadata-load-backdrop': ([metadataId]) => isSafeFileName(metadataId),
+    'metadata-load-missing': ([metadataId]) => isSafeFileName(metadataId),
+    'metadata-credits': ([film]) => typeof film?.filmId === 'number',
     'metadata-film-details': ([film]) => typeof film?.filmId === 'number',
     'metadata-news': ([provider, section]) => METADATA_PROVIDERS.includes(provider) && NEWS_SECTIONS.includes(section),
     'get-language': true,
@@ -90,13 +87,10 @@ const REMOTE_CHANNELS: Record<string, ArgsCheck | true> = {
     'start-subtitles': async ([request]: [SubtitleRequest]) => {
         if (!isLibraryFile(request?.videoPath)) return false;
         if (!request.track?.filePath) return true;
-        // Subtitle file next to the video, as listed by get-media-info
         return (await getExternalSubtitles(request.videoPath)).some(track => track.filePath === request.track.filePath);
     },
     'stop-subtitles': true,
 };
-
-// --- Authorization: a PIN, remembered by the browser as a signed cookie ---
 
 const getAuthToken = (pin: string) => createHmac('sha256', getWebServerSecret()).update(pin).digest('hex');
 
@@ -109,7 +103,6 @@ const isAuthorized = (req: IncomingMessage): boolean => {
     return token.length === expected.length && timingSafeEqual(token, expected);
 };
 
-// Wrong PINs from an address: after LOGIN_MAX_FAILURES further attempts wait LOGIN_LOCK_MS
 const LOGIN_MAX_FAILURES = 5;
 const LOGIN_LOCK_MS = 60 * 1000;
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
@@ -135,8 +128,6 @@ const login = async (req: IncomingMessage, res: ServerResponse) => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     sendJson(res, 200, { result: false });
 };
-
-// --- Events (Server-Sent Events), per browser tab ---
 
 const eventStreams = new Map<string, Set<ServerResponse>>();
 
@@ -167,15 +158,12 @@ const openEventStream = (req: IncomingMessage, res: ServerResponse, clientId: st
         const streams = eventStreams.get(clientId);
         streams?.delete(res);
         if (!streams?.size) {
-            // Tab closed: stop its ffmpeg processes
             eventStreams.delete(clientId);
             stopTranscode(clientId);
             stopClientSubtitles(clientId);
         }
     });
 };
-
-// --- Helpers ---
 
 const sendJson = (res: ServerResponse, status: number, body: unknown) => {
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -194,7 +182,6 @@ const readJsonBody = async (req: IncomingMessage): Promise<unknown[]> => {
     return Array.isArray(body) ? body : [];
 };
 
-// Pipes a fetch Response (shared with the media:// and poster:// protocols) into the HTTP response
 const sendResponse = async (res: ServerResponse, response: Response, extraHeaders: Record<string, string> = {}) => {
     const headers: Record<string, string> = {};
     response.headers.forEach((value, name) => { headers[name] = value; });
@@ -204,7 +191,6 @@ const sendResponse = async (res: ServerResponse, response: Response, extraHeader
         return;
     }
     const body = Readable.fromWeb(response.body as any);
-    // Player seeked or closed: stop reading the file / kill ffmpeg
     res.on('close', () => body.destroy());
     body.on('error', () => res.destroy());
     body.pipe(res);
@@ -288,7 +274,6 @@ export interface WebServerStatus {
     settings: WebServerSettings;
     running: boolean;
     error?: string;
-    // Addresses to open on other devices
     urls: string[];
 }
 
@@ -320,7 +305,6 @@ const stopServer = (): Promise<void> => new Promise(resolve => {
     closing.close(() => resolve());
 });
 
-// Starts, restarts or stops the server according to the settings
 export const applyWebServerSettings = async (): Promise<WebServerStatus> => {
     await stopServer();
     lastError = undefined;

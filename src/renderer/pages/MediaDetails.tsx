@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MediaFileModel, MediaType } from '../models/MediaFileModel';
-import { ArrowLeft } from 'lucide-react';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import MediaDetailsCard from '../components/MediaDetailsCard';
+import BackEdgeButton from '../components/BackEdgeButton';
 import { useI18n } from '../i18n/I18nProvider';
 import { compareGroupMembers, getMediaTitle } from '../utils/mediaGroups';
 
-// A series with its episodes grouped by season
 const withEpisodes = (item: MediaFileModel, episodes: MediaFileModel[]): MediaFileModel => {
     const seasons = Array.from(new Set(episodes.map(ep => ep.season ?? 1))).sort((a, b) => a - b);
     const episodesBySeason: Record<number, MediaFileModel[]> = {};
@@ -17,7 +16,6 @@ const withEpisodes = (item: MediaFileModel, episodes: MediaFileModel[]): MediaFi
     return { ...item, episodes, seasons, episodesBySeason };
 };
 
-// Members of a user group: each movie and each series (by name) is shown as its own block, by year
 const splitGroup = (files: MediaFileModel[]): MediaFileModel[] => {
     const series = new Map<string, MediaFileModel[]>();
     const items: MediaFileModel[] = [];
@@ -52,11 +50,9 @@ const MediaDetails = () => {
                 const files = (await window.electron.getMediaFiles())
                     .filter(file => file.groupId === item.groupId)
                     .sort(compareGroupMembers);
-                // Same name as the group card on the home page
                 setGroupName(item.groupName || getMediaTitle(files[0]));
                 setMediaItems(splitGroup(files));
             } else if (item.type === MediaType.Series) {
-                // All episodes with the same parsedName
                 const episodes = (await window.electron.getMediaFiles()).filter(file =>
                     file.type === MediaType.Series &&
                     !file.groupId &&
@@ -101,14 +97,8 @@ const MediaDetails = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto py-4 md:p-6">
-            <button
-                onClick={() => navigate(-1)}
-                className="flex items-center text-neutral-400 hover:text-white mb-6 transition-colors"
-            >
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                {t('details.backToLibrary')}
-            </button>
+        <div className="pl-14 pr-4 md:px-10 xl:px-16 py-2 md:py-4">
+            <BackEdgeButton label={t('details.backToLibrary')} />
 
             {groupName && (
                 <h1 className="text-2xl font-bold text-white mb-4">{groupName}</h1>

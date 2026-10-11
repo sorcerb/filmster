@@ -74,6 +74,8 @@ const nl: Messages = {
     'details.backToLibrary': 'Terug naar bibliotheek',
     'details.findPoster': 'Poster zoeken',
     'details.noDescription': 'Geen beschrijving',
+    'details.cast': 'Cast',
+    'details.directors': 'Regie',
     'details.findDescription': 'Beschrijving zoeken',
     'details.fileInformation': 'Bestandsinformatie',
     'details.fileName': 'Bestandsnaam',

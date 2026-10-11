@@ -74,6 +74,8 @@ const tr: Messages = {
     'details.backToLibrary': 'Kitaplığa dön',
     'details.findPoster': 'Afiş bul',
     'details.noDescription': 'Açıklama yok',
+    'details.cast': 'Oyuncular',
+    'details.directors': 'Yönetmen',
     'details.findDescription': 'Açıklama bul',
     'details.fileInformation': 'Dosya Bilgileri',
     'details.fileName': 'Dosya Adı',

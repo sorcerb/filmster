@@ -1,12 +1,8 @@
 import Store from 'electron-store';
 import { randomUUID } from 'crypto';
 
-// User-made groups of media files (cards merged by drag and drop on the home page).
-// Members keep their own metadata; the group card shows the earliest member (by year, then title)
-// and is named after it unless the user renamed the group. Files are referenced by id (full path).
 export interface MediaGroup {
     id: string;
-    // Set only when renamed by the user
     name?: string;
     fileIds: string[];
 }
@@ -21,8 +17,6 @@ export const getMediaGroups = (): MediaGroup[] =>
     (store.get(storeName, []) as LegacyMediaGroup[]).map(({ metadataId, ...group }) =>
         metadataId ? { id: group.id, fileIds: group.fileIds } : group);
 
-// Adds the source files to the target's group, or creates a group when the target has none.
-// Source files leave their previous groups; emptied groups are removed.
 export const groupMediaFiles = (targetIds: string[], sourceIds: string[]): void => {
     const groups = getMediaGroups();
     const target = groups.find(group => group.fileIds.includes(targetIds[0]));
@@ -40,7 +34,6 @@ export const groupMediaFiles = (targetIds: string[], sourceIds: string[]): void 
     store.set(storeName, next);
 };
 
-// An empty name returns the group to the automatic one
 export const renameMediaGroup = (groupId: string, name: string): void => {
     store.set(storeName, getMediaGroups().map(group => {
         if (group.id !== groupId) return group;

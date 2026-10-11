@@ -74,6 +74,8 @@ const es: Messages = {
     'details.backToLibrary': 'Volver a la biblioteca',
     'details.findPoster': 'Buscar póster',
     'details.noDescription': 'Sin descripción',
+    'details.cast': 'Reparto',
+    'details.directors': 'Dirección',
     'details.findDescription': 'Buscar descripción',
     'details.fileInformation': 'Información del archivo',
     'details.fileName': 'Nombre del archivo',

@@ -74,6 +74,8 @@ const uk: Messages = {
     'details.backToLibrary': 'Назад до медіатеки',
     'details.findPoster': 'Знайти постер',
     'details.noDescription': 'Немає опису',
+    'details.cast': 'У ролях',
+    'details.directors': 'Режисер',
     'details.findDescription': 'Знайти опис',
     'details.fileInformation': 'Інформація про файл',
     'details.fileName': 'Назва файлу',

@@ -8,7 +8,7 @@ export interface AudioTrackInfo {
     isSupported: boolean;
 }
 
-// Either an embedded text stream (`stream` = index among subtitle streams) or a subtitle file next to the video
+// `stream` is the index among subtitle streams, not among all streams
 export interface SubtitleTrackInfo {
     stream?: number;
     filePath?: string;
@@ -28,7 +28,6 @@ export interface SubtitleRequest {
     videoPath: string;
     track: SubtitleTrackInfo;
     from: number;
-    // Stop once a cue starting at or after this time is read; null - read to the end
     until: number | null;
 }
 

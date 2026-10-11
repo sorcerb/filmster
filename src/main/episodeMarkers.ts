@@ -15,32 +15,17 @@ import { MediaFileModel, MediaType } from '../renderer/models/MediaFileModel';
 import { EpisodeMarkers, TimeRange } from '../renderer/models/EpisodeMarkers';
 import { getAutoSkipIntro, getAutoSkipIntroDefault, setAutoSkipIntro, setAutoSkipIntroDefault } from '../renderer/stores/AutoSkipIntroStore';
 
-// Intro and credits of series episodes, found by comparing an episode with other episodes of the series:
-// the intro is a stretch of audio (4 s - 2.5 min) its beginning shares with theirs, wherever it starts
-// (episodes open with scenes of different length). A music sting repeated mid-episode is shared too,
-// so the intro has to be confirmed by two comparisons (see pickIntro). The credits are audio its end shares with theirs (a closing song),
-// otherwise the last long run of black frames (text on black). An episode is analyzed when it is played,
-// then the next one, so its markers are ready by the time it starts. Results go to episode-markers.json.
-// Client event: 'episode-markers-updated' (filePath, markers).
-
-// 2: intros from 8 s (version 1 missed short ones); 3: from 4 s, and with two episodes the earliest shared stretch
 const MARKERS_VERSION = 3;
-// Beginning searched for the intro: a share of the episode, at most INTRO_SEARCH_MAX seconds
 const INTRO_SEARCH_SHARE = 0.3;
 const INTRO_SEARCH_MAX = 600;
 const INTRO_MIN_SECONDS = 4;
 const INTRO_MAX_SECONDS = 150;
-// End searched for the credits
 const CREDITS_SEARCH_SHARE = 0.25;
 const CREDITS_SEARCH_MAX = 360;
 const CREDITS_MIN_SECONDS = 15;
-// Black credits may be followed by studio logos for this long
 const CREDITS_MAX_TAIL = 60;
-// Share of black pixels in a frame of black credits (white text takes the rest)
 const BLACK_FRAME_PERCENT = 85;
-// Episodes compared with; two that agree are enough
 const MAX_COMPARISONS = 3;
-// Fingerprints of recently analyzed episodes, reused when their neighbours are analyzed
 const FINGERPRINT_CACHE_SIZE = 20;
 
 interface MarkersFile {
@@ -69,15 +54,12 @@ const loadMarkers = (): MarkersFile => {
 
 const markersWriter = createJsonWriter(getMarkersPath, () => markersFile, 1000);
 
-// Drops markers of files that are no longer in the library (see garbageCollector.ts)
 export const pruneEpisodeMarkers = (libraryPaths: Set<string>) => {
     const files = loadMarkers().files;
     const stale = Object.keys(files).filter(filePath => !libraryPaths.has(filePath));
     stale.forEach(filePath => delete files[filePath]);
     if (stale.length) markersWriter.schedule();
 };
-
-// --- Fingerprint worker ---
 
 let worker: Worker | null = null;
 let nextTaskId = 0;
@@ -116,9 +98,6 @@ const stopWorker = () => {
     rejectPendingTasks(new Error('Fingerprint worker stopped'));
 };
 
-// --- ffmpeg ---
-
-// Analysis runs in the background: playback and the app come first
 const lowerPriority = (pid: number | undefined) => {
     try {
         if (pid) os.setPriority(pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
@@ -139,7 +118,6 @@ const getDuration = (filePath: string): Promise<number | null> => new Promise((r
     );
 });
 
-// First audio track from `start` for `length` seconds as mono 16-bit PCM at SAMPLE_RATE; null if it can't be read
 const decodeAudio = (filePath: string, start: number, length: number): Promise<Int16Array | null> => new Promise((resolve) => {
     const ffmpeg = spawn(ffmpegPath, [
         '-hide_banner', '-loglevel', 'error',
@@ -162,9 +140,6 @@ const decodeAudio = (filePath: string, start: number, length: number): Promise<I
     });
 });
 
-// Start of the last long run of mostly black frames near the end (credits as text on black), or null.
-// Only keyframes are decoded, a few seconds apart: the run starts at the first black one, so the credits
-// are found a bit late rather than early.
 const findBlackCredits = (filePath: string, from: number, duration: number): Promise<number | null> => new Promise((resolve) => {
     const ffmpeg = spawn(ffmpegPath, [
         '-hide_banner', '-nostats',
@@ -199,11 +174,8 @@ const findBlackCredits = (filePath: string, from: number, duration: number): Pro
     });
 });
 
-// --- Analysis ---
-
 interface EpisodePrints {
     intro: Fingerprint;
-    // Where `credits` starts in the episode
     creditsFrom: number;
     credits: Fingerprint;
     duration: number;
@@ -250,7 +222,6 @@ const findShared = (a: Fingerprint, b: Fingerprint, minSeconds: number, maxSecon
 const overlaps = (a: TimeRange, b: TimeRange) =>
     Math.min(a.end, b.end) - Math.max(a.start, b.start) >= Math.min(a.end - a.start, b.end - b.start) / 2;
 
-// Of the ranges found by each comparison: the one most other comparisons also found, the longest of equals
 const pickAgreed = (comparisons: TimeRange[][]): { range: TimeRange; agreeing: number } | null => {
     let best: { range: TimeRange; agreeing: number } | null = null;
     comparisons.forEach((ranges, index) => {
@@ -266,8 +237,6 @@ const pickAgreed = (comparisons: TimeRange[][]): { range: TimeRange; agreeing: n
     return best;
 };
 
-// Confirmed by another comparison. With nothing else to compare with (two episodes) the earliest shared stretch:
-// the intro comes near the start, music stings later
 const pickIntro = (comparisons: TimeRange[][]): TimeRange | null => {
     if (comparisons.length === 1) {
         return [...comparisons[0]].sort((a, b) => a.start - b.start)[0] ?? null;
@@ -281,7 +250,6 @@ const getSeriesEpisodes = (file: MediaFileModel) =>
 
 const isSameEpisode = (a: MediaFileModel, b: MediaFileModel) => a.season === b.season && a.episode === b.episode;
 
-// Other episodes of the series, closest first: same season, the next episode before the previous one
 const getComparisonEpisodes = (file: MediaFileModel): MediaFileModel[] => {
     const distance = (other: MediaFileModel) => {
         const seasonDiff = Math.abs((other.season ?? 0) - (file.season ?? 0));
@@ -309,7 +277,6 @@ const analyzeEpisode = async (file: MediaFileModel): Promise<EpisodeMarkers | nu
     const prints = await getEpisodePrints(file.fullPath);
     if (!prints) return null;
 
-    // Per comparison
     const intros: TimeRange[][] = [];
     const credits: TimeRange[][] = [];
     let compared = 0;
@@ -337,7 +304,6 @@ const analyzeEpisode = async (file: MediaFileModel): Promise<EpisodeMarkers | nu
     };
 };
 
-// Stored markers that are still valid: same file, and if no intro was found, no episodes were added since
 const getValidMarkers = (file: MediaFileModel): EpisodeMarkers | null => {
     const markers = loadMarkers().files[file.fullPath];
     if (!markers || markers.fileSize !== (file.fileSize ?? 0)) return null;
@@ -345,10 +311,7 @@ const getValidMarkers = (file: MediaFileModel): EpisodeMarkers | null => {
     return markers;
 };
 
-// --- Queue ---
-
 const queue: string[] = [];
-// Files that couldn't be read in this session (e.g. a drive went offline); not retried until restart
 const failedPaths = new Set<string>();
 let isProcessing = false;
 
@@ -394,8 +357,6 @@ const processQueue = async () => {
 
 app.on('will-quit', stopWorker);
 
-// Markers of an episode being played; null while it is analyzed ('episode-markers-updated' follows) or not a series.
-// Also queues the next episode.
 handle('get-episode-markers', (_client, filePath: string): EpisodeMarkers | null => {
     const file = getAllMediaFiles().find(f => f.fullPath === filePath);
     if (!file || file.type !== MediaType.Series) return null;

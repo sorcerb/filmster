@@ -2,13 +2,12 @@ import { net } from 'electron';
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { getApiSettings } from '../renderer/stores/ApiSettingsStore';
 import { getLanguage } from '../renderer/stores/LanguageStore';
-import { FilmImages, getDefaultProvider, getProviderApiKey, METADATA_PROVIDERS, MetadataApiError, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
-import { fetchKinopoiskDetails, fetchKinopoiskImages, fetchKinopoiskNews, findKinopoiskFilm, searchKinopoiskFilms } from '../shared/kinopoisk';
-import { fetchTmdbDetails, fetchTmdbImages, fetchTmdbNews, findTmdbFilm, searchTmdbFilms } from '../shared/tmdb';
+import { FilmCredits, FilmImages, getDefaultProvider, getProviderApiKey, METADATA_PROVIDERS, MetadataApiError, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
+import { fetchKinopoiskBackdrops, fetchKinopoiskCredits, fetchKinopoiskDetails, fetchKinopoiskImages, fetchKinopoiskNews, findKinopoiskFilm, searchKinopoiskFilms } from '../shared/kinopoisk';
+import { fetchTmdbCredits, fetchTmdbDetails, fetchTmdbImages, fetchTmdbNews, findTmdbFilm, searchTmdbFilms } from '../shared/tmdb';
 
 // Metadata API requests go through the main process: no CORS in the renderer, and the API keys stay here
 
-// Providers with an API key, the default one first
 export const getProviderOrder = (): MetadataProvider[] => {
     const settings = getApiSettings();
     const first = getDefaultProvider(settings);
@@ -32,6 +31,35 @@ export const getFilmImages = (film: MovieSearchResult): Promise<FilmImages> => {
         : fetchKinopoiskImages(film, apiKey, net.fetch);
 };
 
+// Kept for the session: the news card asks again each time it is opened, and Kinopoisk keys have a daily quota
+const creditsCache = new Map<string, Promise<FilmCredits>>();
+
+export const getFilmCredits = (film: MovieSearchResult): Promise<FilmCredits> => {
+    const provider: MetadataProvider = film.source === 'tmdb' ? 'tmdb' : 'kinopoisk';
+    const apiKey = getProviderApiKey(provider, getApiSettings());
+    const language = getLanguage();
+    const cacheKey = `${provider}:${film.type}:${film.filmId}:${language}`;
+    let credits = creditsCache.get(cacheKey);
+    if (!credits) {
+        credits = provider === 'tmdb'
+            ? fetchTmdbCredits(film, language, apiKey, net.fetch)
+            : fetchKinopoiskCredits(film.filmId, apiKey, net.fetch);
+        credits.catch(() => creditsCache.delete(cacheKey));
+        creditsCache.set(cacheKey, credits);
+    }
+    return credits;
+};
+
+export const getBackdropCandidates = async (film: MovieSearchResult): Promise<string[]> => {
+    const provider: MetadataProvider = film.source === 'tmdb' ? 'tmdb' : 'kinopoisk';
+    const apiKey = getProviderApiKey(provider, getApiSettings());
+    if (provider === 'tmdb') {
+        const details = film.backdropUrl ? film : await fetchTmdbDetails(film, getLanguage(), apiKey, net.fetch);
+        return details?.backdropUrl ? [details.backdropUrl] : [];
+    }
+    return (await fetchKinopoiskBackdrops(film, apiKey, net.fetch, true)).map(image => image.url);
+};
+
 const findFilmWith = (provider: MetadataProvider, parsedName: string, year: number | undefined): Promise<MovieSearchResult | null> => {
     const apiKey = getProviderApiKey(provider, getApiSettings());
     return provider === 'tmdb'
@@ -39,8 +67,6 @@ const findFilmWith = (provider: MetadataProvider, parsedName: string, year: numb
         : findKinopoiskFilm(parsedName, year, apiKey, net.fetch);
 };
 
-// Default provider first, the other one if it finds nothing. A provider that fails with a bad key or
-// exceeded quota is added to failedProviders and skipped from then on; once all of them failed, the error is thrown.
 export const findFilm = async (parsedName: string, year: number | undefined, failedProviders = new Set<MetadataProvider>()): Promise<MovieSearchResult | null> => {
     const providers = getProviderOrder().filter(provider => !failedProviders.has(provider));
     let apiError: MetadataApiError | null = null;
@@ -73,7 +99,6 @@ export const getFilmDetails = (film: MovieSearchResult): Promise<MovieSearchResu
 const NEWS_CACHE_MS = 6 * 60 * 60 * 1000;
 const newsCache = new Map<string, { time: number; items: Promise<NewsItem[]> }>();
 
-// Empty for a provider without a key
 export const getNews = (provider: MetadataProvider, section: NewsSection): Promise<NewsItem[]> => {
     const apiKey = getProviderApiKey(provider, getApiSettings());
     if (!apiKey) return Promise.resolve([]);

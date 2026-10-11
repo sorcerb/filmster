@@ -22,7 +22,6 @@ const Navbar = () => {
         }
     };
 
-    // Shown only while there is a new version: found, downloading or ready to install
     const updateTitle = (() => {
         const version = updateStatus?.version ?? '';
         switch (updateStatus?.state) {

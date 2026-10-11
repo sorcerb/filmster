@@ -13,7 +13,6 @@ export const DEFAULT_REGEX_PATTERNS: RegexPatterns = {
     separator: '[._]'
 } as const;
 
-// Previous defaults: a stored value equal to one of these is replaced with the current default
 export const LEGACY_REGEX_PATTERNS: Partial<RegexPatterns>[] = [
     {
         seasonEpisode: 'S(\\d{1,2})[ .]?E?(\\d{1,2})',

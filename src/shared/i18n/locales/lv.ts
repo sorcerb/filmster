@@ -74,6 +74,8 @@ const lv: Messages = {
     'details.backToLibrary': 'Atpakaļ uz bibliotēku',
     'details.findPoster': 'Atrast plakātu',
     'details.noDescription': 'Nav apraksta',
+    'details.cast': 'Lomās',
+    'details.directors': 'Režisors',
     'details.findDescription': 'Atrast aprakstu',
     'details.fileInformation': 'Informācija par failu',
     'details.fileName': 'Faila nosaukums',

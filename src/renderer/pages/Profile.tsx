@@ -52,7 +52,6 @@ const Profile = () => {
     }
 
     const formatNumber = (value: number) => new Intl.NumberFormat(language).format(value);
-    // Small amounts keep a decimal: "0.7", "12"
     const formatHours = (hours: number) => new Intl.NumberFormat(language, { maximumFractionDigits: hours < 10 ? 1 : 0 }).format(hours);
     const formatSize = (bytes: number) => {
         const tb = bytes / 1024 ** 4;

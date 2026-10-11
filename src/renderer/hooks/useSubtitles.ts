@@ -1,13 +1,11 @@
 import { RefObject, useCallback, useEffect, useRef } from 'react';
 import { SubtitleCue, SubtitleTrackInfo } from '../models/MediaInfo';
 
-// Embedded subtitles are spread through the whole file, so they're extracted in windows around the playback position
+// Seconds
 const EXTRACT_WINDOW = 600;
-// Next window is requested when less than this is left in the current one
 const PREFETCH = 300;
 // Windows start a bit earlier so cues already on screen at the position are caught
 const LEAD_IN = 30;
-// Seeking this far past what the running extraction has reached restarts it at the new position
 const RESTART_GAP = 60;
 
 type Range = [number, number];
@@ -26,10 +24,7 @@ const addRange = (ranges: Range[], range: Range): Range[] => {
 
 const cueKey = (cue: SubtitleCue) => `${cue.start}|${cue.text}`;
 
-/**
- * Shows `track` on the <video> as a native text track; null - subtitles off.
- * `time` - logical position in the file, `offset` - file time the current stream starts at (transcoded streams start at a keyframe).
- */
+// `offset` - file time the current stream starts at (transcoded streams start at a keyframe)
 export const useSubtitles = (
     videoRef: RefObject<HTMLVideoElement | null>,
     videoPath: string | undefined,
@@ -38,13 +33,11 @@ export const useSubtitles = (
     offset: number,
 ) => {
     const cuesRef = useRef(new Map<string, SubtitleCue>());
-    // Cues currently added to the text track and the offset they were added with
     const shownRef = useRef(new Set<string>());
     const shownOffsetRef = useRef(0);
     const offsetRef = useRef(offset);
     offsetRef.current = offset;
     const textTrackRef = useRef<TextTrack | null>(null);
-    // File time ranges already extracted, and the extraction in progress
     const rangesRef = useRef<Range[]>([]);
     const activeRef = useRef<{ id: number; from: number; until: number | null; progress: number } | null>(null);
 
@@ -89,7 +82,6 @@ export const useSubtitles = (
     const startExtraction = useCallback((from: number) => {
         if (!track || !videoPath) return;
         const nextRange = rangesRef.current.find(r => r[0] > from);
-        // Subtitle files are small and read whole
         const until = track.filePath ? null : Math.min(nextRange?.[0] ?? Infinity, from + EXTRACT_WINDOW);
         const id = nextRequestId++;
         activeRef.current = { id, from, until, progress: from };
@@ -117,7 +109,6 @@ export const useSubtitles = (
         return () => { offCues(); offEnd(); };
     }, [syncCues]);
 
-    // Track switched: start over
     useEffect(() => {
         const textTrack = getTextTrack();
         if (textTrack) textTrack.mode = track ? 'showing' : 'hidden';
@@ -131,7 +122,6 @@ export const useSubtitles = (
 
     useEffect(() => { syncCues(); }, [offset, syncCues]);
 
-    // Make sure cues around the position are extracted or on the way
     useEffect(() => {
         if (!track) return;
         const active = activeRef.current;
@@ -141,7 +131,6 @@ export const useSubtitles = (
         }
         const findRange = () => rangesRef.current.find(r => time >= r[0] && time <= r[1]);
         if (active) {
-            // Either the running extraction will get to the position soon, or it's prefetching the next window
             if ((time >= active.from && time <= active.progress + RESTART_GAP) || findRange()) return;
             stopExtraction();
         }

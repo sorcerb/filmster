@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, LoaderCircle, Star, X } from 'lucide-react';
-import { MetadataProvider, NewsItem } from '../../shared/metadataApi';
+import { FilmCredits, MetadataProvider, NewsItem } from '../../shared/metadataApi';
 import { MovieSearchResult } from '../models/MovieSearchResult';
 import { useI18n } from '../i18n/I18nProvider';
 import CustomLinkButtons, { LINK_PILL_CLASS } from './CustomLinkButtons';
 import BackdropImage from './BackdropImage';
+import CreditsList from './CreditsList';
 
 export const isNewsItemMovie = (item: MovieSearchResult) => item.type === 'FILM' || item.type === 'VIDEO';
 
 export const getNewsItemTitle = (item: NewsItem) => item.nameRu || item.nameEn || '';
 
-// The title's page on a provider: its own one, or a search by title on the other
 export const getNewsItemUrl = (item: NewsItem, provider: MetadataProvider = item.source ?? 'kinopoisk') => {
     const query = encodeURIComponent(getNewsItemTitle(item));
     if (provider === 'tmdb') {
@@ -24,7 +24,6 @@ export const getNewsItemUrl = (item: NewsItem, provider: MetadataProvider = item
         : `https://www.kinopoisk.ru/film/${item.filmId}/`;
 };
 
-// Details fill in what the list item lacks (description, genres); empty values don't overwrite
 const mergeDetails = (item: NewsItem, details: MovieSearchResult | null): NewsItem => {
     if (!details) return item;
     const filled = Object.entries(details).filter(([, value]) =>
@@ -34,7 +33,6 @@ const mergeDetails = (item: NewsItem, details: MovieSearchResult | null): NewsIt
 
 interface NewsItemModalProps {
     item: NewsItem;
-    // An episode or movie file of this title in the library
     libraryFileId?: string;
     onClose: () => void;
 }
@@ -45,12 +43,18 @@ const NewsItemModal = ({ item, libraryFileId, onClose }: NewsItemModalProps) => 
     const [film, setFilm] = useState(item);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [credits, setCredits] = useState<FilmCredits | null>(null);
+
     useEffect(() => {
         let isCurrent = true;
         window.electron.getFilmDetails(item)
             .then(details => isCurrent && setFilm(mergeDetails(item, details)))
             .catch(error => console.error('Error loading film details:', error))
             .finally(() => isCurrent && setIsLoading(false));
+        setCredits(null);
+        window.electron.getFilmCredits(item)
+            .then(found => isCurrent && setCredits(found))
+            .catch(error => console.error('Error loading film credits:', error));
         return () => { isCurrent = false; };
     }, [item]);
 
@@ -146,6 +150,8 @@ const NewsItemModal = ({ item, libraryFileId, onClose }: NewsItemModalProps) => 
                             ? <LoaderCircle className="h-4 w-4 animate-spin" />
                             : t('details.noDescription'))}
                     </div>
+
+                    <CreditsList directors={credits?.directors} actors={credits?.actors} />
 
                     {libraryFileId && (
                         <button

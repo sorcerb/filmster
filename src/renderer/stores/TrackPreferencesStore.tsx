@@ -14,7 +14,6 @@ export const getTrackPreference = (key: string): TrackPreference | undefined => 
     return store.get('data')[key];
 };
 
-// Updates only the given kinds (audio / subtitle), the other one stays as chosen before
 export const saveTrackPreference = (key: string, preference: TrackPreference): void => {
     const data = store.get('data');
     data[key] = { ...data[key], ...preference };

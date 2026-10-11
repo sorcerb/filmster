@@ -27,7 +27,6 @@ const getIdKey = (source: MetadataProvider, id: string | number, isMovie: boolea
 
 const getTitleKey = (title: string, year: number | string) => `title:${normalizeTitle(title)}:${parseInt(String(year)) || ''}`;
 
-// Library files by the provider ids and title + year of their metadata (the title for metadata from the other provider)
 const buildLibraryIndex = (files: MediaFileModel[]): Map<string, string> => {
     const index = new Map<string, string>();
     const add = (key: string, fileId: string) => { if (!index.has(key)) index.set(key, fileId); };
@@ -61,7 +60,6 @@ const MIN_EXPANDABLE = 7;
 
 const SKELETON_COUNT = 10;
 
-// null while loading
 type SectionState = NewsItem[] | null | 'error';
 
 interface NewsRowProps {
@@ -75,7 +73,6 @@ const NewsRow = ({ section, items, libraryIndex, onSelect }: NewsRowProps) => {
     const { t, language } = useI18n();
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Release dates matter for what is in cinemas or coming; the year is enough for the rest
     const showDate = section === 'nowPlaying' || section === 'upcoming';
     const getSubtitle = (item: NewsItem) => showDate && item.releaseDate
         ? new Date(item.releaseDate).toLocaleDateString(language, { day: 'numeric', month: 'long' })
@@ -143,22 +140,18 @@ const NewsRow = ({ section, items, libraryIndex, onSelect }: NewsRowProps) => {
 
 const GENRE_STORAGE_KEY = 'newsGenre';
 
-// What a click on a title opens: the card, a provider ('tmdb', 'kinopoisk') or a custom link ('link:' + its URL)
 const CLICK_ACTION_STORAGE_KEY = 'newsClickAction';
 const CARD_ACTION = 'card';
 const LINK_ACTION_PREFIX = 'link:';
 
 const News = () => {
     const { t } = useI18n();
-    // Providers with an API key, the default one first; undefined while loading
     const [providers, setProviders] = useState<MetadataProvider[]>();
-    // The default provider when the page opens, then the one picked here
     const [provider, setProvider] = useState<MetadataProvider | null>();
     const [sections, setSections] = useState<Record<NewsSection, SectionState>>(
         () => Object.fromEntries(NEWS_SECTIONS.map(section => [section, null])) as Record<NewsSection, SectionState>);
     const [libraryIndex, setLibraryIndex] = useState(new Map<string, string>());
     const [genreIcons, setGenreIcons] = useState<GenreIcons>({});
-    // One genre or all; kept for the session, so it survives opening a film and coming back
     const [genre, setGenre] = useState<string | null>(() => sessionStorage.getItem(GENRE_STORAGE_KEY));
     const [selected, setSelected] = useState<NewsItem | null>(null);
     const closeModal = useCallback(() => setSelected(null), []);
@@ -206,7 +199,6 @@ const News = () => {
         else sessionStorage.removeItem(GENRE_STORAGE_KEY);
     }, [genre]);
 
-    // Titles per genre over all sections; a title in two sections counts once
     const genreCounts = useMemo(() => {
         const titlesByGenre = new Map<string, Set<string>>();
         for (const items of Object.values(sections)) {
@@ -223,7 +215,6 @@ const News = () => {
             .sort(([a], [b]) => a.localeCompare(b));
     }, [sections]);
 
-    // Providers only with an API key; a removed link or key falls back to the card
     const clickOptions = [
         { value: CARD_ACTION, label: t('news.clickCard') },
         ...(providers ?? []).map(item => ({ value: item, label: t(item === 'tmdb' ? 'api.providerTmdb' : 'api.providerKinopoisk') })),
@@ -236,7 +227,6 @@ const News = () => {
         localStorage.setItem(CLICK_ACTION_STORAGE_KEY, value);
     };
 
-    // Ctrl+click always opens the card
     const handleSelect = (item: NewsItem, openCard: boolean) => {
         const link = customLinks.find(link => LINK_ACTION_PREFIX + link.url === currentClickAction);
         const url = openCard || currentClickAction === CARD_ACTION ? null

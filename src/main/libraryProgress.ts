@@ -7,8 +7,6 @@ import { PlayerType } from '../renderer/models/PlayerType';
 
 const getFileName = (filePath: string) => filePath.split('\\').pop()?.toLowerCase() || '';
 
-// Progress of every library file that was played, keyed by full path. Without `player` both players count:
-// the built-in player's progress and MPC-HC history; the more recent one wins.
 export const getLibraryProgress = async (player?: PlayerType): Promise<Record<string, LibraryFileProgress>> => {
     const internal = player === 'external' ? {} : getAllWatchProgress();
     // MPC history paths may differ (mapped drive vs UNC), so match by file name

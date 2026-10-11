@@ -74,6 +74,8 @@ const lt: Messages = {
     'details.backToLibrary': 'Atgal į biblioteką',
     'details.findPoster': 'Rasti plakatą',
     'details.noDescription': 'Aprašymo nėra',
+    'details.cast': 'Vaidina',
+    'details.directors': 'Režisierius',
     'details.findDescription': 'Rasti aprašymą',
     'details.fileInformation': 'Informacija apie failą',
     'details.fileName': 'Failo pavadinimas',

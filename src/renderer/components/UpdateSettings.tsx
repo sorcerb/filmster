@@ -4,10 +4,8 @@ import { LoaderCircle } from 'lucide-react';
 import { useI18n } from '../i18n/I18nProvider';
 import { useUpdateStatus } from '../hooks/useUpdateStatus';
 
-// Navigation state of the update icon in the navbar: scroll to this block
 export const SCROLL_TO_UPDATES = 'scrollToUpdates';
 
-// Updates from GitHub releases (main/updater.ts): auto update toggle, manual check, download and install
 const UpdateSettings = () => {
     const { t } = useI18n();
     const location = useLocation();
@@ -22,7 +20,6 @@ const UpdateSettings = () => {
             .catch(error => console.error('Error reading auto update setting:', error));
     }, []);
 
-    // The block appears once the status is loaded
     useEffect(() => {
         if (isScrollRequested && status) blockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [isScrollRequested, location.key, !!status]);

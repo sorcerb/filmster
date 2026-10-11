@@ -74,6 +74,8 @@ const ro: Messages = {
     'details.backToLibrary': 'Înapoi la bibliotecă',
     'details.findPoster': 'Caută afiș',
     'details.noDescription': 'Fără descriere',
+    'details.cast': 'Distribuție',
+    'details.directors': 'Regia',
     'details.findDescription': 'Caută descriere',
     'details.fileInformation': 'Informații despre fișier',
     'details.fileName': 'Numele fișierului',

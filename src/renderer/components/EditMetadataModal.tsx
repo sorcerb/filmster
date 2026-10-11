@@ -12,11 +12,8 @@ const POSTER_WIDTH = 780;
 const PREVIEW_WIDTH = 185;
 const BACKDROP_WIDTH = 1920;
 
-// Backdrop to save: the saved one, none, the first one of the selected movie once its images are loaded,
-// or a picked one (provider image or own JPEG data URL)
 type BackdropState = { kind: 'keep' } | { kind: 'none' } | { kind: 'pending' } | { kind: 'image'; url: string; previewUrl: string };
 
-// Image tile error handler: falls back from the preview to the full image, hides the tile if that fails too
 const hideBrokenImage = (fullUrl: string) => (e: React.SyntheticEvent<HTMLImageElement>) => {
     const image = e.currentTarget;
     if (image.src !== fullUrl) image.src = fullUrl;
@@ -26,7 +23,6 @@ const hideBrokenImage = (fullUrl: string) => (e: React.SyntheticEvent<HTMLImageE
 const toBackdropChange =(backdrop: BackdropState): BackdropChange =>
     backdrop.kind === 'pending' ? { kind: 'movie' } : backdrop.kind === 'image' ? { kind: 'image', url: backdrop.url } : backdrop;
 
-// JPEG data URL of the image scaled down to maxWidth
 const scaleImage = (image: ImageBitmap, maxWidth: number): string => {
     const scale = Math.min(1, maxWidth / image.width);
     const canvas = document.createElement('canvas');
@@ -56,17 +52,12 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
     const [searchResults, setSearchResults] = useState<MovieSearchResult[]>([]);
     const [searched, setSearched] = useState<boolean>(false);
     const [searchError, setSearchError] = useState<string | null>(null);
-    // Source of the shown results; Enter in the search field searches it again
     const [provider, setProvider] = useState<MetadataProvider>('kinopoisk');
-    // Providers with an API key, the default one first; only these get a search button
     const [providers, setProviders] = useState<MetadataProvider[]>([]);
     const [selectedMovie, setSelectedMovie] = useState<MovieSearchResult | null>(null);
-    // Own image picked by clicking the poster; replaces the one of the selected movie
     const [customPoster, setCustomPoster] = useState<CustomPoster | null>(null);
     const posterInputRef = useRef<HTMLInputElement>(null);
-    // Other posters of the selected movie; a click on one makes it the poster
     const [posters, setPosters] = useState<PosterImage[]>([]);
-    // Backdrops of the selected movie, and the one to save
     const [backdrops, setBackdrops] = useState<PosterImage[]>([]);
     const [backdrop, setBackdrop] = useState<BackdropState>({ kind: 'keep' });
     const backdropInputRef = useRef<HTMLInputElement>(null);
@@ -83,12 +74,10 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
         setSearchResults([]);
     }, [file]);
 
-    // Search the default provider right away when the modal opens
     useEffect(() => {
         if (!isOpen) return;
         const keyword = (file.parsedName + ' ' + (file?.year?.toString() || '')).trim();
         setSearchKeyword(keyword);
-        // The fields start with the saved metadata, so it can be edited (or given an own poster) without a search
         const { posterUrl, posterUrlPreview, backdropUrl, ...saved }: Partial<MovieMetadata> = file.metadata ?? {};
         setMediaMetadata({ externalIds: {}, genres: [], countries: [], ratings: [], ...saved, id: file.metadataId } as MovieMetadata);
         setSelectedMovie(null);
@@ -105,7 +94,6 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
             });
     }, [isOpen]);
 
-    // Esc closes the modal, like Cancel
     useEffect(() => {
         if (!isOpen) return;
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -170,7 +158,6 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
         }
     };
 
-    // Posters and backdrops of the movie
     const loadImages = async (movie: MovieSearchResult) => {
         postersFilmRef.current = movie;
         const ownPoster: PosterImage[] = movie.posterUrl ? [{ url: movie.posterUrl, previewUrl: movie.posterUrlPreview || movie.posterUrl }] : [];
@@ -204,7 +191,6 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
     const handleSelectMovie = (movie: MovieSearchResult) => {
         setSelectedMovie(movie);
         setCustomPoster(null);
-        // Turned off stays off; otherwise the movie's backdrop, or its first one once the images are loaded
         setBackdrop(current => current.kind === 'none' ? current
             : movie.backdropUrl ? { kind: 'image', url: movie.backdropUrl, previewUrl: movie.backdropUrl } : { kind: 'pending' });
         loadImages(movie);
@@ -213,6 +199,9 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
             ...mediaMetadata,
             id: file.metadataId,
             externalIds: isTmdb ? { tmdb: movie.filmId } : { kinopoisk: String(movie.filmId) },
+            // The cast of the previous title; loaded for this one when its page is opened
+            directors: undefined,
+            actors: undefined,
             dataSource: isTmdb ? MoveDbMediaSource.TMDB : MoveDbMediaSource.Kinopoisk,
             type: getMediaType(movie),
             title: movie.nameRu || movie.nameEn || t('metadata.noName'),
@@ -284,36 +273,19 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
                 onDragLeave={stopPropagation}
                 onDrop={stopPropagation}
             >
-                {/* Left: search and its results; right: what gets saved */}
                 <div
                     className="bg-neutral-800 rounded-lg w-full max-w-6xl max-h-[calc(100vh-2rem)] flex flex-col border border-neutral-700 shadow-2xl"
                     onClick={e => e.stopPropagation()}
                 >
-                    <div className="px-6 pt-5 pb-4 border-b border-neutral-700">
-                        <h3 className="text-xl font-semibold text-white">{t('metadata.title')}</h3>
-                        <div className="flex flex-wrap gap-x-8 text-sm text-neutral-400">
-                            <span className="break-all">{t('metadata.fileId', { value: fileTitle })}</span>
-                            <span>{t('metadata.fileYear', { value: fileYear ?? '' })}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:grid-rows-[minmax(0,1fr)]">
-                    {/* The right column sets the height (h-0 + min-h-full): a long result list scrolls instead of growing the modal */}
-                    <div className="flex flex-col min-h-0 max-h-80 md:max-h-none md:h-0 md:min-h-full p-4 md:border-r border-neutral-700">
-                    <form onSubmit={handleSearch} className="mb-4">
-                        <div className="flex gap-2 items-center">
-                            <div className="flex-1 relative">
-                                <input
-                                    type="text"
-                                    className="w-full bg-neutral-700/50 border border-neutral-600 rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder={t('metadata.searchPlaceholder')}
-                                    value={searchKeyword}
-                                    name="search_keyword"
-                                    onChange={(e) => setSearchKeyword(e.target.value)}
-                                />
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4" />
+                    <div className="px-6 pt-5 pb-4 border-b border-neutral-700 flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-xl font-semibold text-white">{t('metadata.title')}</h3>
+                            <div className="flex flex-wrap gap-x-8 text-sm text-neutral-400">
+                                <span className="break-all">{t('metadata.fileId', { value: fileTitle })}</span>
+                                <span>{t('metadata.fileYear', { value: fileYear ?? '' })}</span>
                             </div>
-                            {/* One button per provider with a key; the one of the shown results is highlighted */}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
                             {METADATA_PROVIDERS.filter(item => providers.includes(item)).map(item => (
                                 <button
                                     key={item}
@@ -328,6 +300,28 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:grid-rows-[minmax(0,1fr)]">
+                    {/* The right column sets the height (h-0 + min-h-full): a long result list scrolls instead of growing the modal */}
+                    <div className="flex flex-col min-h-0 max-h-80 md:max-h-none md:h-0 md:min-h-full p-4 md:border-r border-neutral-700">
+                    <form onSubmit={handleSearch} className="relative mb-4">
+                        <input
+                            type="text"
+                            className="w-full bg-neutral-700/50 border border-neutral-600 rounded-lg pl-4 pr-11 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder={t('metadata.searchPlaceholder')}
+                            value={searchKeyword}
+                            name="search_keyword"
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                        />
+                        <button
+                            type="submit"
+                            disabled={isSearching || !providers.includes(provider)}
+                            title={t('metadata.searchIn', { provider: t(provider === 'tmdb' ? 'api.providerTmdb' : 'api.providerKinopoisk') })}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-600 rounded-md transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                        >
+                            {isSearching ? <LoaderCircle className="animate-spin h-4 w-4" /> : <Search className="h-4 w-4" />}
+                        </button>
                     </form>
                     {searched && searchResults.length > 0 && (
                         <div className="flex-1 min-h-0 overflow-y-auto border border-neutral-700 rounded">
@@ -376,7 +370,6 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
 
                     <form id="metadata-form" onSubmit={handleSubmit} className="min-h-0 md:overflow-y-auto p-4 space-y-4 border-t md:border-t-0 border-neutral-700">
                         <div className="flex gap-4">
-                            {/* Poster of the selected movie; a click picks an own image instead */}
                             <button
                                 type="button"
                                 onClick={() => posterInputRef.current?.click()}
@@ -430,7 +423,6 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
                                 </div>
                             </div>
                         </div>
-                        {/* Posters of the selected movie */}
                         {selectedMovie && (isLoadingPosters || posters.length > 1) && (
                             <div className="flex gap-2 overflow-x-auto pb-1">
                                 {posters.map(poster => (
@@ -457,7 +449,6 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
                                 )}
                             </div>
                         )}
-                        {/* Backdrop: a click on the big one picks an own image, the first tile turns it off */}
                         <div>
                             <label className="block text-sm font-medium text-neutral-300 mb-1">{t('metadata.backdrop')}</label>
                             <div className="flex gap-2 items-start">

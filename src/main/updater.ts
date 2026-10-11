@@ -3,16 +3,11 @@ import { autoUpdater } from 'electron-updater';
 import { getAutoUpdate } from '../renderer/stores/AutoUpdateStore';
 import { broadcast } from './rpc';
 
-// Updates from GitHub releases (latest.yml next to the installer, see electron-builder.yml).
-// With auto update on, new versions are checked and downloaded in the background; a downloaded
-// update is installed when the app quits. Otherwise only on request from the settings.
-
 export type UpdateState = 'idle' | 'checking' | 'latest' | 'available' | 'downloading' | 'downloaded' | 'error' | 'unsupported';
 
 export interface UpdateStatus {
     state: UpdateState;
     currentVersion: string;
-    // The new version, once found
     version?: string;
     percent?: number;
     error?: string;

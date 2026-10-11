@@ -74,6 +74,8 @@ const de: Messages = {
     'details.backToLibrary': 'Zurück zur Mediathek',
     'details.findPoster': 'Poster suchen',
     'details.noDescription': 'Keine Beschreibung',
+    'details.cast': 'Besetzung',
+    'details.directors': 'Regie',
     'details.findDescription': 'Beschreibung suchen',
     'details.fileInformation': 'Dateiinformationen',
     'details.fileName': 'Dateiname',

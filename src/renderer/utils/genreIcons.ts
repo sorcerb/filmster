@@ -5,7 +5,7 @@ import ghost from '../../assets/genre-icons/ghost.png';
 import rocket from '../../assets/genre-icons/rocket.png';
 import crown from '../../assets/genre-icons/crown.png';
 
-// Icons a genre button can have (chosen in the settings). The ids are saved, so they must not change.
+// The ids are saved, so they must not change.
 // Microsoft Fluent Emoji (MIT).
 export const GENRE_ICONS: { id: string; src: string }[] = [
     { id: 'star', src: star },

@@ -10,7 +10,6 @@ interface MovieListCardProps {
     item: MediaFileModel;
     isGrouped?: boolean;
     onClick?: () => void;
-    // Called after the user group of this card was renamed or ungrouped
     onGroupChanged?: () => void;
 }
 
@@ -22,7 +21,6 @@ const MovieListCard = ({ item, isGrouped = false, onClick, onGroupChanged }: Mov
     const [metaTitle, setMetaTitle] = useState<string | null>(null);
     const [metaYear, setMetaYear] = useState<string | null>(null);
 
-    // posterUrlPreview carries the poster file version (?v=mtime), so the image is cached until it changes
     const applyMetadata = (metadata: MediaFileModel['metadata']) => {
         setMetaTitle(metadata?.title || null);
         setMetaYear(metadata?.year ? metadata.year.toString() : null);
@@ -39,7 +37,6 @@ const MovieListCard = ({ item, isGrouped = false, onClick, onGroupChanged }: Mov
         }
     };
 
-    // The media list already comes with metadata; ask the main process only when it is missing
     useEffect(() => {
         if (file.metadata !== undefined) {
             applyMetadata(file.metadata);
@@ -48,7 +45,6 @@ const MovieListCard = ({ item, isGrouped = false, onClick, onGroupChanged }: Mov
         }
     }, [file.parsedName, file.metadata?.posterUrlPreview, file.metadata?.title]);
 
-    // Metadata loaded in the background (new file found by a scan)
     useEffect(() => {
         return window.electron.onMetadataUpdated(metadataId => {
             if (metadataId.toLowerCase() === file.metadataId?.toLowerCase()) {
@@ -102,7 +98,6 @@ const MovieListCard = ({ item, isGrouped = false, onClick, onGroupChanged }: Mov
     const finishRename = async (save: boolean) => {
         setIsRenaming(false);
         const name = groupName.trim();
-        // An empty name returns the group to the automatic one
         if (!save || !item.groupId || name === item.groupName) return;
         try {
             await window.electron.renameMediaGroup(item.groupId, name);

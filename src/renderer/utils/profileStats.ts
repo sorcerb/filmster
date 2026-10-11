@@ -1,12 +1,7 @@
 import { MediaFileModel, MediaType } from '../models/MediaFileModel';
 import { LibraryFileProgress } from '../models/WatchProgressModel';
 
-// Statistics of the profile page. Only the latest state of each file is stored (position, duration,
-// date of the last view), not a viewing log, so watched time is an estimate: a finished file counts
-// its duration, a started one its position; files finished in MPC-HC with an unknown duration count nothing.
-
 const FINISHED_PERCENT = 0.95;
-// Opened by accident
 const MIN_STARTED_POSITION = 60;
 const TOP_GENRES = 8;
 const RECENT_COUNT = 10;
@@ -24,7 +19,6 @@ export interface ProfileStats {
     watchedEpisodes: number;
     hoursTotal: number;
     hoursThisMonth: number;
-    // Genre -> number of watched or started titles, most first
     genres: { genre: string; count: number }[];
     recent: RecentEntry[];
 }
@@ -41,7 +35,6 @@ const formatGenre = (genre: string) => {
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 };
 
-// Several files of one title (versions, episodes) count as one
 const getTitleKey = (file: MediaFileModel) =>
     file.type === MediaType.Series ? `series:${file.parsedName}` : `movie:${file.metadataId || file.id}`;
 

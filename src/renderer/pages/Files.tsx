@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { MediaFileModel, MediaType } from "../models/MediaFileModel";
 import { LoaderCircle, RefreshCcw } from "lucide-react";
 import FileListCard from "../components/FileListCard";
+import BackEdgeButton from "../components/BackEdgeButton";
 import { useI18n } from '../i18n/I18nProvider';
 import { getGroupNames } from '../utils/mediaGroups';
 
 
-// Files show the name of their user group (groupName is set only for renamed groups)
 const withGroupNames = (files: MediaFileModel[]): MediaFileModel[] => {
     const names = getGroupNames(files);
     return files.map(file => file.groupId ? { ...file, groupName: names.get(file.groupId) } : file);
@@ -89,7 +89,8 @@ const Files = () => {
     }
 
     return (
-        <>
+        <div className="pl-12 md:pl-8">
+            <BackEdgeButton label={t('common.goBack')} />
             <div className="h-12 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <h1 className="text-xl text-neutral-100">{t('files.title')}</h1>
@@ -147,7 +148,7 @@ const Files = () => {
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 }
 

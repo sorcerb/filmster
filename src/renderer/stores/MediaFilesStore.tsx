@@ -4,15 +4,13 @@ import { loadMetadata } from './metadataService';
 import { getAllMediaFiles } from '../../main/scanFiles';
 import { getMediaGroups } from './MediaGroupsStore';
 
-// The media list used to be stored in config.json, making every settings read parse it.
-// It now lives in the scan cache; drop the old copy.
+// Legacy: the media list used to be in config.json; it now lives in the scan cache.
 const legacyStore = new Store();
 if (legacyStore.has('MediaFiles')) {
     legacyStore.delete('MediaFiles');
 }
 
 // Copies: the scan cache models must not get group fields or metadata attached.
-// Group members keep their own metadata.
 const withGroups = (files: MediaFileModel[]): MediaFileModel[] => {
     const groupByFile = new Map(getMediaGroups().flatMap(group => group.fileIds.map(id => [id, group] as const)));
     return files.map(file => {

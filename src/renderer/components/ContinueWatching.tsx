@@ -10,7 +10,6 @@ import { useI18n } from '../i18n/I18nProvider';
 const formatEpisode = (file: MediaFileModel) =>
     `S${String(file.season ?? 1).padStart(2, '0')}E${String(file.episode).padStart(2, '0')}`;
 
-// Started movies and series on top of the home page; a click plays right away
 const ContinueWatching = ({ items }: { items: MediaFileModel[] }) => {
     const { t } = useI18n();
     const { play } = useWatchProgress(60000);
@@ -55,7 +54,6 @@ const ContinueWatching = ({ items }: { items: MediaFileModel[] }) => {
     if (entries.length === 0) return null;
 
     const getTitle = ({ item, file }: ContinueWatchingEntry) =>
-        // A group member is shown as itself (e.g. the second part), not as the group
         item.groupId ? getMediaTitle(file) : item.groupName || item.metadata?.title || item.parsedName;
 
     const getSubtitle = ({ file, progress: fileProgress, isNext }: ContinueWatchingEntry) => {

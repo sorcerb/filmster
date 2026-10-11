@@ -38,7 +38,6 @@ contextMenu({
 let mainWindow: BrowserWindow;
 
 const createWindow = () => {
-  // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 600,
@@ -61,30 +60,25 @@ const createWindow = () => {
   // with the page address ("index.html" in the installed app, "localhost:5173" in dev)
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
 
-  // Links to websites (e.g. a film on TMDB or Kinopoisk) open in the default browser, not in a new app window
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  // Same for plain links: the app window never leaves the app's own pages
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (new URL(url).origin === new URL(mainWindow.webContents.getURL()).origin) return;
     event.preventDefault();
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
   });
 
-  // and load the index.html of the app.
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
   const isDev = !app.isPackaged;
-  // Open the DevTools.
   if (isDev)
     mainWindow.webContents.openDevTools();
 
-  // Ctrl+Shift+I toggles DevTools (also in production builds for debugging)
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
     if (input.control && input.shift && input.key.toLowerCase() === 'i') {
@@ -94,9 +88,6 @@ const createWindow = () => {
   });
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.on('ready', () => {
   registerMediaProtocol();
   createWindow();
@@ -106,9 +97,6 @@ app.on('ready', () => {
   initGarbageCollector();
 });
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -116,8 +104,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }

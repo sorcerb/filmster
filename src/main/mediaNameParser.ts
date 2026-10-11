@@ -6,7 +6,6 @@ export interface ParsedMediaName {
     year?: number;
     season?: number;
     episode?: number;
-    // "Show.S01E01.The Burger.mkv" -> "The Burger"
     episodeTitle?: string;
     resolution?: string;
     quality?: string;
@@ -23,7 +22,6 @@ interface CompiledPatterns {
     separator: RegExp;
 }
 
-// Release tags that are not configurable: used only to cut the title when the name has no year
 const TECH_TAGS = /(?<![a-z\d])(?:HDR\d*|SDR|HEVC|AVC|[xh]\.?26[45]|\d{1,2} ?bits?|UHD|Remux|Rus|Eng|Ukr|AMZN|NF|DSNP|ATVP|IVI)(?![a-z])/gi;
 const SERIES_FOLDER = /(?<![a-zа-яё])(?:tv|series|tv ?shows?|сериалы?)(?![a-zа-яё])/i;
 const NEVER = /(?!)/g;
@@ -65,7 +63,6 @@ const all = (re: RegExp, text: string): Match[] =>
 
 const first = (re: RegExp, text: string): Match | undefined => all(re, text)[0];
 
-// First non-empty capture group, or the whole match
 const value = (m: RegExpMatchArray): string => m.slice(1).find(Boolean) ?? m[0];
 
 const toNumber = (m: RegExpMatchArray | undefined, group: number): number | undefined => {
@@ -73,7 +70,6 @@ const toNumber = (m: RegExpMatchArray | undefined, group: number): number | unde
     return isNaN(n) ? undefined : n;
 };
 
-// Index of the first release tag (quality / resolution / codec, ...) after the title start
 const firstTagIndex = (text: string, p: CompiledPatterns): number => {
     const indexes = [p.quality, p.resolution, TECH_TAGS]
         .flatMap(re => all(re, text).map(m => m.index))
@@ -95,7 +91,6 @@ const findYear = (text: string, p: CompiledPatterns): { year: number; index: num
     return isNaN(year) ? undefined : { year, index: m.index };
 };
 
-// Title part of a file or folder name: everything before the year / SxxEyy / release tags
 const cleanTitle = (text: string, p: CompiledPatterns): string => {
     const cuts: number[] = [];
     const se = first(p.seasonEpisode, text);
@@ -111,9 +106,9 @@ const cleanTitle = (text: string, p: CompiledPatterns): string => {
 
     let name = text.slice(0, Math.min(...cuts));
     name = name
-        .replace(/^\d{1,3}\.\s+(?=\S)/, '')       // "1. Madagascar" - index in a collection
-        .replace(/[([][^)\]]*[)\]]/g, ' ')         // "(2015)", "[HEVC]"
-        .replace(/[([].*$/, ' ')                   // unclosed bracket left by the cut
+        .replace(/^\d{1,3}\.\s+(?=\S)/, '')
+        .replace(/[([][^)\]]*[)\]]/g, ' ')
+        .replace(/[([].*$/, ' ') // unclosed bracket left by the cut
         .replace(p.separator, ' ');
     if (p.custom) name = name.replace(p.custom, '');
     return name
@@ -133,13 +128,11 @@ const seasonFromFolders = (folders: string[], p: CompiledPatterns): number | und
     return undefined;
 };
 
-// Spelling of the tag as written in the pattern: "dvdrip" -> "DVDRip"
 const canonical = (tag: string, re: RegExp): string => {
     const i = re.source.toLowerCase().indexOf(tag.toLowerCase());
     return i >= 0 ? re.source.substr(i, tag.length) : tag;
 };
 
-// Searches the file name first, then the folders from the closest one (episodes often carry tags only in the folder)
 const findTag = (re: RegExp, fileName: string, folders: string[]): string | undefined => {
     for (const text of [fileName, ...folders.slice().reverse()]) {
         const m = first(re, text);
@@ -161,11 +154,9 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
     const folders = parentFolder ? parentFolder.split('/').filter(Boolean) : [];
     const lastFolder = folders[folders.length - 1] ?? '';
 
-    // Season / episode
     let season: number | undefined;
     let episode: number | undefined;
     let episodeOnly = false;
-    // Where the episode number ends in the file name: the episode title may follow it
     let episodeEnd: number | undefined;
     const se = first(p.seasonEpisode, fileName);
     if (se && se[1] && se[2]) {
@@ -189,20 +180,17 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
         folders.some(f => isSeasonFolder(f, p)) ||
         SERIES_FOLDER.test(parentFolder);
 
-    // Year: from the file name, otherwise from the closest folder
     let year = findYear(fileName, p)?.year;
     for (let i = folders.length - 1; year === undefined && i >= 0; i--) {
         year = findYear(folders[i], p)?.year;
     }
 
-    // Title: from the file name, otherwise from the closest folder that is not just "Season 01".
     // "05 - Pilot" holds the episode title, so the show name comes from the folders.
     let parsedName = episodeOnly && folders.length ? '' : cleanTitle(fileName, p);
     for (let i = folders.length - 1; !parsedName && i >= 0; i--) {
         parsedName = cleanTitle(folders[i], p);
     }
 
-    // "Toy Story/Toy Story 1.mkv" -> "Toy Story"
     if (!isSeries && lastFolder) {
         const numbered = parsedName.match(/^(.+?)\s+1$/);
         if (numbered && numbered[1].toLowerCase() === cleanTitle(lastFolder, p).toLowerCase()) {
@@ -210,7 +198,6 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
         }
     }
 
-    // Same cleanup as a title: up to the year / release tags ("S01E02.1080p.WEB-DL" has none)
     const episodeTitle = episodeEnd !== undefined ? cleanTitle(fileName.slice(episodeEnd), p) : '';
 
     return {

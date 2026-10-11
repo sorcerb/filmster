@@ -1,7 +1,6 @@
 import Store from 'electron-store';
 import { randomBytes } from 'crypto';
 
-// Network access: the library served to browsers on the local network (see main/webServer.ts)
 export interface WebServerSettings {
     enabled: boolean;
     port: number;

@@ -74,6 +74,8 @@ const it: Messages = {
     'details.backToLibrary': 'Torna alla libreria',
     'details.findPoster': 'Trova locandina',
     'details.noDescription': 'Nessuna descrizione',
+    'details.cast': 'Cast',
+    'details.directors': 'Regia',
     'details.findDescription': 'Trova descrizione',
     'details.fileInformation': 'Informazioni sul file',
     'details.fileName': 'Nome file',

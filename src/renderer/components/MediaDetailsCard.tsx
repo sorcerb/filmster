@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MediaFileModel } from '../models/MediaFileModel';
-import { Play, List, ChevronLeft, ChevronDown, Search, Pencil, Star, ExternalLink } from 'lucide-react';
+import { Play, List, Search, Pencil, Star, ExternalLink, Info } from 'lucide-react';
 import { MovieMetadata } from '../models/MediaMetadata';
 import { getProviderFilmUrl } from '../../shared/metadataApi';
 import { FileProgress } from '../hooks/useWatchProgress';
@@ -8,23 +8,54 @@ import EditMetadataModal from './EditMetadataModal';
 import { useI18n } from '../i18n/I18nProvider';
 import CustomLinkButtons, { LINK_PILL_CLASS } from './CustomLinkButtons';
 import BackdropImage from './BackdropImage';
+import CreditsList from './CreditsList';
+import FileInfoModal from './FileInfoModal';
+
+const GLASS_PILL_CLASS = 'px-3 py-1 bg-neutral-900/60 border border-white/10 text-neutral-100 backdrop-blur-md rounded-full';
+const ICON_BUTTON_CLASS = 'p-1.5 text-neutral-200 bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:text-white hover:bg-neutral-700/80 rounded-full transition-colors';
+
+interface PlayTileProps {
+    title: string;
+    subtitle?: string;
+    hint?: string;
+    // Watched part, 0-100
+    progress: number;
+    onPlay: (e: React.MouseEvent) => void;
+    large?: boolean;
+}
+
+const PlayTile = ({ title, subtitle, hint, progress, onPlay, large = false }: PlayTileProps) => (
+    <button
+        onClick={onPlay}
+        title={hint}
+        className="group w-full text-left bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:bg-neutral-700/80 hover:border-white/25 rounded-lg overflow-hidden transition-colors"
+    >
+        <div className={`${large ? 'px-6 py-4' : 'px-4 py-3'} flex justify-between items-center gap-2`}>
+            <div className="min-w-0">
+                <h4 className={`font-medium text-white ${large ? 'text-lg' : ''}`}>{title}</h4>
+                {subtitle && <p className="text-sm text-neutral-300 truncate" title={subtitle}>{subtitle}</p>}
+            </div>
+            <Play className={`${large ? 'h-6 w-6' : 'h-5 w-5'} shrink-0 text-neutral-300 group-hover:text-white transition-colors`} />
+        </div>
+        <div className="h-1 bg-white/10">
+            <div className="h-1 bg-blue-500" style={{ width: `${progress}%` }} />
+        </div>
+    </button>
+);
 
 interface MediaDetailsCardProps {
-    // A movie, or a series with its episodes and seasons
     mediaItem: MediaFileModel;
     getProgress: (filePath: string) => FileProgress | null;
     play: (file: MediaFileModel, useOtherPlayer?: boolean) => void;
-    // Backdrop behind the whole page: the first title of a group only
     showBackdrop?: boolean;
 }
 
-// Poster, metadata, file information and play buttons of one movie or series
 const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }: MediaDetailsCardProps) => {
     const { t, language } = useI18n();
     const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
 
-    const [hideFileInformation, setHideFileInformation] = useState(true);
+    const [showFileInfo, setShowFileInfo] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
 
     const file = mediaItem.episodes?.[0] ?? mediaItem;
@@ -53,11 +84,10 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
         try {
             const metadata = await window.electron.loadMetadata(file.metadataId);
             if (metadata) {
-                // posterUrl carries the file version (?v=mtime), a re-downloaded poster gets a new URL
                 setMetaData(metadata);
-                // Saved before backdrops were loaded, or found without one: the host looks it up (once a session at most)
-                if (!metadata.backdropUrl && !metadata.noBackdrop && (metadata.externalIds?.tmdb || metadata.externalIds?.kinopoisk)) {
-                    const found = await window.electron.loadMissingBackdrop(file.metadataId);
+                const isMissingDetails = (!metadata.backdropUrl && !metadata.noBackdrop) || !metadata.actors;
+                if (isMissingDetails && (metadata.externalIds?.tmdb || metadata.externalIds?.kinopoisk)) {
+                    const found = await window.electron.loadMissingDetails(file.metadataId);
                     if (found) setMetaData(await window.electron.loadMetadata(file.metadataId));
                 }
             }
@@ -70,244 +100,209 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
         loadMetadata();
     }, [file.metadataId]);
 
-    // Rating and page of the title on the provider the metadata came from
     const providerUrl = metaData ? getProviderFilmUrl(metaData, mediaItem.type === 'series' ? 'series' : 'movie') : null;
     const providerName = t(metaData?.externalIds?.kinopoisk ? 'api.providerKinopoisk' : 'api.providerTmdb');
     const rating = metaData?.ratings?.[0];
 
     return (
-        <div className="relative p-4 md:p-6">
+        <div className="relative pb-4 md:pb-6">
             {showBackdrop && <BackdropImage url={metaData?.backdropUrl} fullScreen />}
-            <div className="relative md:flex gap-6">
-                <div className="w-2/3 mx-auto md:mx-0 md:w-1/3 mb-6 md:mb-0">
-                    <div className="aspect-[2/3] bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg flex items-center justify-center">
-                        {metaData?.posterUrl ? (
-                            <img
-                                src={metaData.posterUrl}
-                                alt={mediaItem.parsedName}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    console.warn('Failed to load poster:', target.src);
-                                    target.style.display = 'none';
-                                }}
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center gap-4">
-                                <span className="text-8xl text-neutral-400">
-                                    {mediaItem.type === 'movie' ? '🎬' : '📺'}
-                                </span>
-                                <button
-                                    onClick={() => setShowEditModal(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                                >
-                                    <Search className="h-4 w-4" />
-                                    {t('details.findPoster')}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                        <h1 className="text-2xl font-bold text-white">
-                            {metaData?.title || mediaItem.parsedName}
-                        </h1>
-                        <div className="flex items-center gap-2 shrink-0">
-                            {(metaData?.year || mediaItem.year) && (
-                                <span className="px-3 py-1 bg-neutral-700 text-neutral-200 rounded-full text-sm">
-                                    {metaData?.year || mediaItem.year}
-                                </span>
-                            )}
-                            <button
-                                onClick={() => setShowEditModal(true)}
-                                className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-full transition-colors"
-                                title={t('home.editMetadata')}
-                            >
-                                <Pencil className="h-4 w-4" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {mediaItem.quality && (
-                            <span className="px-3 py-1 bg-orange-900 text-orange-200 rounded-full text-xs">
-                                {mediaItem.quality}
-                            </span>
-                        )}
-                        {mediaItem.resolution && (
-                            <span className="px-3 py-1 bg-green-900 text-green-200 rounded-full text-xs">
-                                {mediaItem.resolution}
-                            </span>
-                        )}
-                        <span className="px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-xs">
-                            {mediaItem.type === 'movie' ? t('common.movie') : t('common.series')}
-                        </span>
-                        {providerUrl && (
-                            <a
-                                href={providerUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={[t('details.openOn', { provider: providerName }), rating?.votesCount ? t('details.votes', { count: rating.votesCount.toLocaleString(language) }) : '']
-                                    .filter(Boolean).join(' · ')}
-                                className={LINK_PILL_CLASS}
-                            >
-                                {rating?.value ? (
-                                    <>
-                                        <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                                        <span className="font-medium text-white">{rating.value.toFixed(1)}</span>
-                                    </>
-                                ) : null}
-                                <span>{providerName}</span>
-                                <ExternalLink className="h-3 w-3 text-neutral-500" />
-                            </a>
-                        )}
-                        <CustomLinkButtons title={metaData?.title || mediaItem.parsedName} />
-                    </div>
-
-                    <div className="mt-4 text-neutral-400 line-clamp-3 gap-2 flex flex-wrap rounded-lg">
-                        {metaData?.genres.map((genre, index) => (
-                            <span key={index} className="px-3 py-1 bg-neutral-700 text-neutral-200 rounded-full text-xs">
-                                {genre}
-                            </span>
-                        ))}
-                    </div>
-
-                    <div className="mt-4 text-neutral-300 bg-neutral-900/70 backdrop-blur-sm p-4 rounded-lg overflow-y-auto">
-                        {metaData?.description ? metaData.description : (
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm">{t('details.noDescription')}</span>
-                                <button
-                                    onClick={() => setShowEditModal(true)}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-neutral-700 text-neutral-200 text-sm rounded hover:bg-neutral-600 transition-colors"
-                                >
-                                    <Search className="h-4 w-4" />
-                                    {t('details.findDescription')}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="mt-6">
-                        <h3 className="text-sm font-medium text-neutral-300 mb-2 cursor-pointer" onClick={() => { setHideFileInformation(!hideFileInformation) }}>{t('details.fileInformation')} {hideFileInformation ? <ChevronLeft className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />}</h3>
-                        <div className="bg-neutral-900/70 backdrop-blur-sm rounded-lg p-4 text-sm" style={{ display: hideFileInformation ? 'none' : 'block' }}>
-                            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                                <div>
-                                    <p className="text-neutral-400">{t('details.fileName')}</p>
-                                    <p className="text-white">{mediaItem.fileName}</p>
-                                </div>
-                                <div>
-                                    <p className="text-neutral-400">{t('details.fileSize')}</p>
-                                    <p className="text-white">
-                                        {mediaItem.fileSize ? `${(mediaItem.fileSize / (1024 * 1024 * 1024)).toFixed(2)} GB` : t('details.notAvailable')}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-neutral-400">{t('details.path')}</p>
-                                    <p className="text-neutral-300 break-all">{mediaItem.fullPath}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {mediaItem.type === 'series' ? (
-                        <div className="mt-6">
-                            <div className="flex items-center gap-2 mb-3">
-                                <List className="h-5 w-5 text-neutral-400" />
-                                <h3 className="text-sm font-medium text-neutral-300">{t('details.episodes')}</h3>
-                            </div>
-                            <div className="bg-neutral-900/70 backdrop-blur-sm rounded-lg p-4">
-                                {mediaItem.seasons && mediaItem.seasons.length > 0 ? (
-                                    mediaItem.seasons.map(season => {
-                                        const seasonEpisodes = mediaItem.episodes?.filter(ep => ep.season === season) || [];
-                                        return (
-                                            <div key={`season-${season}`} className="mb-6">
-                                                <h3 className="text-lg font-semibold text-white mb-3">
-                                                    {t('common.season', { season: season.toString().padStart(2, '0') })}
-                                                </h3>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                                    {seasonEpisodes
-                                                        .sort((a, b) => (a.episode || 0) - (b.episode || 0))
-                                                        .map((episode) => (
-                                                            <button
-                                                                key={episode.id}
-                                                                className="p-2 text-neutral-400 hover:text-white"
-                                                                title={t('details.playEpisode')}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    play(episode, e.ctrlKey);
-                                                                }}
-                                                            >
-                                                                {(() => {
-                                                                    return (
-                                                                        <div className="bg-neutral-700 rounded overflow-hidden hover:bg-neutral-600 transition-colors">
-                                                                            <div className="p-3">
-                                                                                <div className="flex justify-between items-center gap-2">
-                                                                                    <div className="min-w-0 text-left">
-                                                                                        <h4 className="font-medium text-white">
-                                                                                            {episode.episode ? t('details.episode', { episode: episode.episode.toString().padStart(2, '0') }) : t('details.unknownEpisode')}
-                                                                                        </h4>
-                                                                                        {episode.episodeTitle && (
-                                                                                            <p className="text-sm text-neutral-400 truncate" title={episode.episodeTitle}>{episode.episodeTitle}</p>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <Play className="h-5 w-5 shrink-0" />
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="h-1 bg-neutral-600 w-full">
-                                                                                <div
-                                                                                    className="h-1 bg-blue-500"
-                                                                                    style={{ width: `${getProgressPercent(episode.fullPath)}%` }}
-                                                                                />
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })()}
-                                                            </button>
-                                                        ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
+            <div className="relative flex gap-6 md:gap-8">
+                <div className="flex-1 min-w-0">
+                    <div className={`flex gap-4 md:gap-8 ${mediaItem.type !== 'series' ? 'min-h-[calc(100dvh-7.5rem)]' : ''}`}>
+                        <div className="h-[60dvh] min-h-80 max-w-[40%] aspect-[2/3] shrink-0">
+                            <div className="h-full bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg overflow-hidden shadow-2xl shadow-black/60 flex items-center justify-center">
+                                {metaData?.posterUrl ? (
+                                    <img
+                                        src={metaData.posterUrl}
+                                        alt={mediaItem.parsedName}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            console.warn('Failed to load poster:', target.src);
+                                            target.style.display = 'none';
+                                        }}
+                                    />
                                 ) : (
-                                    <p className="text-neutral-400 text-sm">{t('details.noEpisodes')}</p>
+                                    <div className="flex flex-col items-center gap-3 px-2">
+                                        <span className="text-5xl text-neutral-400">
+                                            {mediaItem.type === 'movie' ? '🎬' : '📺'}
+                                        </span>
+                                        <button
+                                            onClick={() => setShowEditModal(true)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                                        >
+                                            <Search className="h-4 w-4" />
+                                            {t('details.findPoster')}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
-                    ) : (
-                        <div className="mt-8 flex flex-col items-center gap-3">
-                            {(() => {
-                                return (
-                                    <>
-                                        <button
-                                            onClick={(e) => play(mediaItem, e.ctrlKey)}
-                                            className="w-64 bg-neutral-700 rounded overflow-hidden hover:bg-neutral-600 transition-colors cursor-pointer"
-                                        >
-                                            <div className="px-6 py-5 flex justify-between items-center">
-                                                <h4 className="font-medium text-white text-base">{t('details.playMovie')}</h4>
-                                                <Play className="h-6 w-6 text-white" />
-                                            </div>
-                                            <div className="h-1 bg-neutral-600 w-full">
-                                                <div
-                                                    className="h-1 bg-blue-500"
-                                                    style={{ width: `${getProgressPercent(mediaItem.fullPath)}%` }}
-                                                />
-                                            </div>
-                                        </button>
-                                    </>
-                                );
-                            })()}
+
+                        <div className="flex-1 min-w-0 max-w-4xl mx-auto flex flex-col">
+                            <div className="flex justify-between items-start">
+                                <h1 className="text-2xl font-bold text-white [text-shadow:0_1px_4px_rgb(0_0_0/0.8)]">
+                                    {metaData?.title || mediaItem.parsedName}
+                                </h1>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={() => setShowFileInfo(true)}
+                                        className={ICON_BUTTON_CLASS}
+                                        title={t('details.fileInformation')}
+                                    >
+                                        <Info className="h-4 w-4" />
+                                    </button>
+                                    {(metaData?.year || mediaItem.year) && (
+                                        <span className={`${GLASS_PILL_CLASS} text-sm`}>
+                                            {metaData?.year || mediaItem.year}
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={() => setShowEditModal(true)}
+                                        className={ICON_BUTTON_CLASS}
+                                        title={t('home.editMetadata')}
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {mediaItem.quality && (
+                                    <span className="px-3 py-1 bg-orange-950/70 border border-orange-400/30 text-orange-200 backdrop-blur-md rounded-full text-xs">
+                                        {mediaItem.quality}
+                                    </span>
+                                )}
+                                {mediaItem.resolution && (
+                                    <span className="px-3 py-1 bg-green-950/70 border border-green-400/30 text-green-200 backdrop-blur-md rounded-full text-xs">
+                                        {mediaItem.resolution}
+                                    </span>
+                                )}
+                                <span className="px-3 py-1 bg-blue-950/70 border border-blue-400/30 text-blue-200 backdrop-blur-md rounded-full text-xs">
+                                    {mediaItem.type === 'movie' ? t('common.movie') : t('common.series')}
+                                </span>
+                                {providerUrl && (
+                                    <a
+                                        href={providerUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title={[t('details.openOn', { provider: providerName }), rating?.votesCount ? t('details.votes', { count: rating.votesCount.toLocaleString(language) }) : '']
+                                            .filter(Boolean).join(' · ')}
+                                        className={LINK_PILL_CLASS}
+                                    >
+                                        {rating?.value ? (
+                                            <>
+                                                <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                                                <span className="font-medium text-white">{rating.value.toFixed(1)}</span>
+                                            </>
+                                        ) : null}
+                                        <span>{providerName}</span>
+                                        <ExternalLink className="h-3 w-3 text-neutral-500" />
+                                    </a>
+                                )}
+                                <CustomLinkButtons title={metaData?.title || mediaItem.parsedName} />
+                            </div>
+
+                            <div className="mt-4 text-neutral-400 line-clamp-3 gap-2 flex flex-wrap rounded-lg">
+                                {metaData?.genres.map((genre, index) => (
+                                    <span key={index} className={`${GLASS_PILL_CLASS} text-xs`}>
+                                        {genre}
+                                    </span>
+                                ))}
+                            </div>
+
+                            <div className="mt-auto pt-6">
+                                <div className="text-neutral-200 bg-neutral-900/75 backdrop-blur-md p-4 rounded-lg overflow-y-auto">
+                                    {metaData?.description ? metaData.description : (
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="text-sm">{t('details.noDescription')}</span>
+                                            <button
+                                                onClick={() => setShowEditModal(true)}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-neutral-700 text-neutral-200 text-sm rounded hover:bg-neutral-600 transition-colors"
+                                            >
+                                                <Search className="h-4 w-4" />
+                                                {t('details.findDescription')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {mediaItem.type !== 'series' && (
+                                    <div className="mt-6 w-80 mx-auto">
+                                        <PlayTile
+                                            title={t('details.playMovie')}
+                                            progress={getProgressPercent(mediaItem.fullPath)}
+                                            onPlay={(e) => play(mediaItem, e.ctrlKey)}
+                                            large
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                    </div>
+
+                    <div className="xl:hidden">
+                        <CreditsList directors={metaData?.directors} actors={metaData?.actors} />
+                    </div>
+                </div>
+
+                {(metaData?.directors?.length || metaData?.actors?.length) ? (
+                    <div className="hidden xl:block w-72 shrink-0 h-[60dvh] min-h-80">
+                        <CreditsList directors={metaData?.directors} actors={metaData?.actors} layout="column" />
+                    </div>
+                ) : null}
+            </div>
+
+            {mediaItem.type === 'series' && (
+                <div className="mt-6 max-w-7xl mx-auto">
+                    <div className="flex items-center gap-2 mb-3">
+                        <List className="h-5 w-5 text-neutral-400" />
+                        <h3 className="text-sm font-medium text-neutral-200 [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]">{t('details.episodes')}</h3>
+                    </div>
+                    {mediaItem.seasons && mediaItem.seasons.length > 0 ? (
+                        <div className="space-y-6">
+                            {mediaItem.seasons.map(season => {
+                                const seasonEpisodes = mediaItem.episodes?.filter(ep => ep.season === season) || [];
+                                return (
+                                    <div key={`season-${season}`}>
+                                        <h3 className="text-lg font-semibold text-white mb-3 [text-shadow:0_1px_4px_rgb(0_0_0/0.8)]">
+                                            {t('common.season', { season: season.toString().padStart(2, '0') })}
+                                        </h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                            {seasonEpisodes
+                                                .sort((a, b) => (a.episode || 0) - (b.episode || 0))
+                                                .map((episode) => (
+                                                    <PlayTile
+                                                        key={episode.id}
+                                                        title={episode.episode ? t('details.episode', { episode: episode.episode.toString().padStart(2, '0') }) : t('details.unknownEpisode')}
+                                                        subtitle={episode.episodeTitle}
+                                                        hint={t('details.playEpisode')}
+                                                        progress={getProgressPercent(episode.fullPath)}
+                                                        onPlay={(e) => {
+                                                            e.stopPropagation();
+                                                            play(episode, e.ctrlKey);
+                                                        }}
+                                                    />
+                                                ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-neutral-400 text-sm">{t('details.noEpisodes')}</p>
                     )}
                 </div>
-            </div>
+            )}
+
             <EditMetadataModal
                 isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
                 file={file}
                 onSave={loadMetadata}
             />
+            {showFileInfo && <FileInfoModal file={mediaItem} onClose={() => setShowFileInfo(false)} />}
         </div>
     );
 };

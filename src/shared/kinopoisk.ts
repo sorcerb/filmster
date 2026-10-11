@@ -1,11 +1,13 @@
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { latinToCyrillic } from '../renderer/utils/transliteration';
-import { FetchFn, FilmImages, MetadataApiError, NewsItem, NewsSection, PosterImage } from './metadataApi';
+import { Person } from '../renderer/models/MediaMetadata';
+import { CAST_LIMIT, FetchFn, FilmCredits, FilmImages, MetadataApiError, NewsItem, NewsSection, PosterImage } from './metadataApi';
 
 const SEARCH_URL = 'https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword';
 const FILM_URL = 'https://kinopoiskapiunofficial.tech/api/v2.2/films';
 const COLLECTIONS_URL = 'https://kinopoiskapiunofficial.tech/api/v2.2/films/collections';
 const PREMIERES_URL = 'https://kinopoiskapiunofficial.tech/api/v2.2/films/premieres';
+const STAFF_URL = 'https://kinopoiskapiunofficial.tech/api/v1/staff';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -31,7 +33,6 @@ const searchByKeyword = async (keyword: string, apiKey: string, fetchFn: FetchFn
     }
 };
 
-// Fallback chain: name + year -> without year -> transliterated name (with/without trailing year)
 export const findKinopoiskFilm = async (parsedName: string, year: number | undefined, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult | null> => {
     const nameTrimmed = parsedName.trim();
     const nameWithoutTrailingYear = nameTrimmed.replace(/\s+(?:19|20)\d{2}$/, '');
@@ -93,10 +94,7 @@ const fetchFilmById = async (id: string, apiKey: string, fetchFn: FetchFn): Prom
     };
 };
 
-// Manual search: Kinopoisk ID or link loads that film, otherwise
-// fallback chain: full query -> without trailing year -> first word only
 export const searchKinopoiskFilms = async (keyword: string, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult[]> => {
-    // Kinopoisk ID or link (kinopoisk.ru/film/123/, /series/123/) -> load by ID
     const idMatch = keyword.trim().match(/^(\d+)$|kinopoisk\.ru\/(?:film|series)\/(\d+)/);
     if (idMatch) {
         const film = await fetchFilmById(idMatch[1] || idMatch[2], apiKey, fetchFn);
@@ -129,7 +127,7 @@ export const searchKinopoiskFilms = async (keyword: string, apiKey: string, fetc
     return [];
 };
 
-// Images of the film of one type, first page only (20): each page is a request out of the key's daily quota
+// First page only: each page is a request out of the key's daily quota
 const fetchImagesOfType = async (filmId: number, type: 'POSTER' | 'WALLPAPER', apiKey: string, fetchFn: FetchFn): Promise<PosterImage[]> => {
     const response = await fetchFn(`${FILM_URL}/${filmId}/images?type=${type}&page=1`, {
         method: 'GET',
@@ -149,21 +147,45 @@ const fetchImagesOfType = async (filmId: number, type: 'POSTER' | 'WALLPAPER', a
     return (data.items ?? []).map((item: { imageUrl: string; previewUrl: string }) => ({ url: item.imageUrl, previewUrl: item.previewUrl || item.imageUrl }));
 };
 
-// Posters, and for the backdrops the cover (the wide picture of the film's page; keyword search results don't have it,
-// so it takes the details request) and wallpapers. A failed backdrop request leaves the posters.
 export const fetchKinopoiskImages = async (film: MovieSearchResult, apiKey: string, fetchFn: FetchFn): Promise<FilmImages> => {
-    const [posters, coverUrl, wallpapers] = await Promise.all([
+    const [posters, backdrops] = await Promise.all([
         fetchImagesOfType(film.filmId, 'POSTER', apiKey, fetchFn),
-        film.backdropUrl
-            ? Promise.resolve(film.backdropUrl)
-            : fetchFilmById(String(film.filmId), apiKey, fetchFn).then(details => details?.backdropUrl, () => undefined),
-        fetchImagesOfType(film.filmId, 'WALLPAPER', apiKey, fetchFn).catch(() => [] as PosterImage[]),
+        fetchKinopoiskBackdrops(film, apiKey, fetchFn, false),
     ]);
-    const cover: PosterImage[] = coverUrl ? [{ url: coverUrl, previewUrl: coverUrl }] : [];
-    return { posters, backdrops: [...cover, ...wallpapers.filter(wallpaper => wallpaper.url !== coverUrl)] };
+    return { posters, backdrops };
 };
 
-// Full details of a film (the description, which list items don't have)
+export const fetchKinopoiskBackdrops = async (film: MovieSearchResult, apiKey: string, fetchFn: FetchFn, firstOnly: boolean): Promise<PosterImage[]> => {
+    const fetchCover = () => film.backdropUrl
+        ? Promise.resolve(film.backdropUrl)
+        : fetchFilmById(String(film.filmId), apiKey, fetchFn).then(details => details?.backdropUrl, () => undefined);
+    const fetchWallpapers = () => fetchImagesOfType(film.filmId, 'WALLPAPER', apiKey, fetchFn).catch(() => [] as PosterImage[]);
+
+    const [coverUrl, wallpapers] = firstOnly
+        ? await fetchCover().then(async url => [url, url ? [] : await fetchWallpapers()] as const)
+        : await Promise.all([fetchCover(), fetchWallpapers()]);
+    const cover: PosterImage[] = coverUrl ? [{ url: coverUrl, previewUrl: coverUrl }] : [];
+    return [...cover, ...wallpapers.filter(wallpaper => wallpaper.url !== coverUrl)];
+};
+
+// The staff list is in billing order
+export const fetchKinopoiskCredits = async (filmId: number, apiKey: string, fetchFn: FetchFn): Promise<FilmCredits> => {
+    const staff: any[] = await requestJson(`${STAFF_URL}?filmId=${filmId}`, apiKey, fetchFn);
+    const toPerson = (person: any, role: Person['role']): Person => ({
+        id: String(person.staffId),
+        name: person.nameRu || person.nameEn,
+        role,
+        character: person.description || undefined,
+        photoUrl: person.posterUrl || undefined,
+        profileUrl: `https://www.kinopoisk.ru/name/${person.staffId}/`,
+    });
+    const withName = (person: any) => person.nameRu || person.nameEn;
+    return {
+        directors: staff.filter(person => person.professionKey === 'DIRECTOR' && withName(person)).map(person => toPerson(person, 'director')),
+        actors: staff.filter(person => person.professionKey === 'ACTOR' && withName(person)).slice(0, CAST_LIMIT).map(person => toPerson(person, 'actor')),
+    };
+};
+
 export const fetchKinopoiskDetails = (filmId: number, apiKey: string, fetchFn: FetchFn): Promise<MovieSearchResult | null> =>
     fetchFilmById(String(filmId), apiKey, fetchFn);
 
@@ -184,7 +206,6 @@ const requestJson = async (url: string, apiKey: string, fetchFn: FetchFn): Promi
     return JSON.parse(await response.text());
 };
 
-// Collection and premiere items -> the search result shape
 const toNewsItem = (film: any): NewsItem => ({
     source: 'kinopoisk',
     filmId: film.kinopoiskId,
@@ -206,7 +227,6 @@ const toNewsItem = (film: any): NewsItem => ({
 
 const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
 
-// Russian premieres of the month (offset from the current one)
 const fetchPremieres = async (monthOffset: number, apiKey: string, fetchFn: FetchFn): Promise<NewsItem[]> => {
     const date = new Date();
     date.setDate(1);
@@ -220,8 +240,6 @@ const fetchCollection = async (type: string, apiKey: string, fetchFn: FetchFn): 
     return (data.items ?? []).map(toNewsItem);
 };
 
-// In cinemas: premieres of this and the last month that already happened, newest first;
-// upcoming: those of this and the next month still ahead, nearest first
 export const fetchKinopoiskNews = async (section: NewsSection, apiKey: string, fetchFn: FetchFn): Promise<NewsItem[]> => {
     if (section === 'trending') return fetchCollection('TOP_POPULAR_MOVIES', apiKey, fetchFn);
     if (section === 'series') return fetchCollection('POPULAR_SERIES', apiKey, fetchFn);

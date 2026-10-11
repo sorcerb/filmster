@@ -38,7 +38,6 @@ const toNumber = (value: string | number | undefined): number =>
     typeof value === 'number' ? value : parseInt(value || '0', 10) || 0;
 
 // reg export writes UTF-16, so non-ASCII paths survive (console output of reg query uses the OEM code page).
-// Much cheaper than starting PowerShell (~40 ms vs ~800 ms).
 export const readMpcHistory = async (): Promise<Record<string, MpcWatchEntry>> => {
     const now = Date.now();
     if (now - _lastLoaded < CACHE_TTL && _lastLoaded > 0) {
@@ -80,7 +79,6 @@ export const readMpcHistory = async (): Promise<Record<string, MpcWatchEntry>> =
         _lastLoaded = now;
         return entries;
     } catch (error) {
-        // Also ends up here when MPC-HC was never used (the key does not exist)
         console.error('Error reading MPC history:', error);
         _lastLoaded = now;
         return _cache;

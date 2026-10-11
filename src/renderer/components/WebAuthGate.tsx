@@ -3,7 +3,6 @@ import { LoaderCircle } from 'lucide-react';
 import { connectEvents, getAuthState, login, onUnauthorized } from '../webApi';
 import { useI18n } from '../i18n/I18nProvider';
 
-// Browser on the local network: asks for the PIN set on the host before showing the app
 const WebAuthGate = ({ children }: { children: ReactNode }) => {
     const { t } = useI18n();
     const [state, setState] = useState<'checking' | 'pin' | 'ready' | 'offline'>('checking');
@@ -20,7 +19,6 @@ const WebAuthGate = ({ children }: { children: ReactNode }) => {
         getAuthState()
             .then(auth => auth.authorized ? authorized() : setState('pin'))
             .catch(() => setState('offline'));
-        // PIN changed on the host while this tab was open
         onUnauthorized(() => setState('pin'));
     }, []);
 

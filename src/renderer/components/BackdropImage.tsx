@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-// Wide background picture of a title, shown once loaded (nothing if it fails). In a card (the card must be relative)
-// it covers the top and fades into the card colour; fullScreen puts it behind the whole page, fading into the page colour.
 const BackdropImage = ({ url, fullScreen = false }: { url?: string; fullScreen?: boolean }) => {
-    const [isLoaded, setIsLoaded] = useState(false);
-
-    useEffect(() => setIsLoaded(false), [url]);
+    // The URL that finished loading, not a flag reset in an effect: a cached picture can load before the effect runs,
+    // and the reset would then hide it for good
+    const [loadedUrl, setLoadedUrl] = useState<string>();
+    const isLoaded = !!url && loadedUrl === url;
 
     if (!url) return null;
 
@@ -19,13 +18,13 @@ const BackdropImage = ({ url, fullScreen = false }: { url?: string; fullScreen?:
             <img
                 src={url}
                 alt=""
-                onLoad={() => setIsLoaded(true)}
-                className={`w-full h-full object-cover object-top transition-opacity duration-700 ${isLoaded ? (fullScreen ? 'opacity-70' : 'opacity-40') : 'opacity-0'}`}
+                onLoad={() => setLoadedUrl(url)}
+                className={`w-full h-full object-cover object-top transition-opacity duration-700 ${isLoaded ? (fullScreen ? 'opacity-90' : 'opacity-40') : 'opacity-0'}`}
             />
             {fullScreen ? (
                 <>
-                    <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/10 via-neutral-900/40 to-neutral-900" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-neutral-900/50 via-transparent to-neutral-900/50" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-900/30 to-neutral-900" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-neutral-900/80 via-neutral-900/30 to-transparent" />
                 </>
             ) : (
                 <div className="absolute inset-0 bg-gradient-to-b from-neutral-800/0 via-neutral-800/60 to-neutral-800" />

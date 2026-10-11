@@ -1,7 +1,5 @@
 import Store from 'electron-store';
 
-// Whether the player skips the intro by itself: chosen per series (by parsed name) with the button in the player,
-// series without a choice follow the default from Settings
 const store = new Store<{ defaultEnabled: boolean; choices: Record<string, boolean>; series?: string[] }>({
     name: 'AutoSkipIntro',
     defaults: {

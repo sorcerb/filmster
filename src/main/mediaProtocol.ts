@@ -30,7 +30,6 @@ const MIME_TYPES: Record<string, string> = {
     '.ts': 'video/mp2t',
 };
 
-// Audio codecs Chromium can decode natively; anything else (ac3, eac3, dts, truehd...) gets transcoded
 const SUPPORTED_AUDIO_CODECS = new Set(['aac', 'mp3', 'opus', 'vorbis', 'flac']);
 
 // Each client (the app window, every browser tab) has one player, so one transcode per client
@@ -86,7 +85,6 @@ handle('get-media-info', async (_client, filePath: string): Promise<MediaInfo | 
     }
 });
 
-// Video keyframe timestamps within ±KEYFRAME_SEARCH_RANGE of `time` (reads packet headers only, fast)
 const KEYFRAME_SEARCH_RANGE = 10;
 handle('get-keyframes', (_client, filePath: string, time: number): Promise<number[]> => new Promise((resolve) => {
     const from = Math.max(0, time - KEYFRAME_SEARCH_RANGE);
@@ -107,11 +105,8 @@ handle('get-keyframes', (_client, filePath: string, time: number): Promise<numbe
 
 handle('stop-transcode', (client) => stopTranscode(client.id));
 
-// Converts the selected audio track to stereo Opus, streamed as Matroska from `start` seconds.
-// Video is copied as-is, or re-encoded to H.264 when `encodeVideo` (codecs Chromium can't decode, e.g. Xvid).
 // Copied video: `start` should be a keyframe: -noaccurate_seek makes audio start at the same keyframe as the video,
 // otherwise audio begins up to a GOP later and the playback clock jumps when it kicks in.
-// Re-encoded video starts exactly at `start`, so it needs no keyframe.
 const transcodeResponse = (filePath: string, start: number, audioTrack: number, encodeVideo: boolean, clientId: string): Response => {
     stopTranscode(clientId);
     const ffmpeg = spawn(ffmpegPath, [
@@ -143,12 +138,9 @@ const transcodeResponse = (filePath: string, start: number, audioTrack: number, 
     return new Response(body, { status: 200, headers: { 'Content-Type': 'video/webm' } });
 };
 
-// Width of the timeline hover preview frame
 const THUMBNAIL_WIDTH = 240;
-// Previews follow the mouse, so only the latest one per client is worth decoding
 const activeThumbnails = new Map<string, ChildProcess>();
 
-// JPEG of the keyframe at (or right after) `time`: only keyframes are decoded, so it's fast even for 4K
 const thumbnailResponse = (filePath: string, time: number, clientId: string): Promise<Response> => new Promise((resolve) => {
     const previous = activeThumbnails.get(clientId);
     if (previous && previous.exitCode === null) previous.kill('SIGKILL');
@@ -168,7 +160,6 @@ const thumbnailResponse = (filePath: string, time: number, clientId: string): Pr
     ffmpeg.on('error', () => resolve(new Response(null, { status: 500 })));
     ffmpeg.on('close', (code) => {
         if (activeThumbnails.get(clientId) === ffmpeg) activeThumbnails.delete(clientId);
-        // Killed by a newer preview or failed
         if (code !== 0 || !chunks.length) { resolve(new Response(null, { status: 204 })); return; }
         resolve(new Response(Buffer.concat(chunks), {
             status: 200,
@@ -214,10 +205,6 @@ const fileResponse = async (filePath: string, rangeHeader: string | null): Promi
     });
 };
 
-// ?path=<encoded path>                              - raw file with HTTP Range support (needed for seeking)
-// ?path=<encoded path>&transcode=1&start=<s>&audio=<n>[&video=h264] - audio (and video) transcoded via ffmpeg
-// ?path=<encoded path>&thumb=<s>                    - JPEG preview frame for the timeline
-// Served as media://local/ to the app window and as /media to browsers (webServer.ts)
 export const mediaResponse = (params: URLSearchParams, rangeHeader: string | null, clientId: string): Promise<Response> | Response => {
     const filePath = params.get('path');
     if (!filePath) return new Response('Path not specified', { status: 400 });
@@ -234,7 +221,6 @@ export const mediaResponse = (params: URLSearchParams, rangeHeader: string | nul
     return fileResponse(filePath, rangeHeader);
 };
 
-// Poster image from the metadata folder; served as poster://local/<file name> and /poster/<file name>
 export const posterResponse = (fileName: string): Promise<Response> | Response => {
     // File name only, so it can't be used to read files outside the posters folder
     if (!fileName || path.basename(fileName) !== fileName) return new Response('Bad poster name', { status: 400 });

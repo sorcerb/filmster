@@ -1,12 +1,10 @@
-// See the Electron documentation for details on how to use preload scripts:
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge, ipcRenderer } from 'electron';
 import { LibraryFolderModel } from '../renderer/models/LibraryFolderModel';
 import { MediaFileModel, RegexPatterns } from '../renderer/models/MediaFileModel';
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { MovieMetadata } from '../renderer/models/MediaMetadata';
 import { ApiSettings } from '../renderer/models/ApiSettings';
-import type { BackdropChange, CustomPoster, FilmImages, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
+import type { BackdropChange, CustomPoster, FilmCredits, FilmImages, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
 import { LibraryFileProgress, WatchProgress } from '../renderer/models/WatchProgressModel';
 import { MpcWatchEntry } from '../renderer/stores/MpcHistoryService';
 import { MediaInfo, SubtitleCue, SubtitleRequest } from '../renderer/models/MediaInfo';
@@ -43,7 +41,8 @@ const api = {
   updateApiSettings: (settings: ApiSettings): Promise<void> => ipcRenderer.invoke('update-api-settings', settings),
   getMetadataProviders: (): Promise<MetadataProvider[]> => ipcRenderer.invoke('get-metadata-providers'),
   getFilmImages: (film: MovieSearchResult): Promise<FilmImages> => ipcRenderer.invoke('metadata-images', film),
-  loadMissingBackdrop: (metadataId: string): Promise<boolean> => ipcRenderer.invoke('metadata-load-backdrop', metadataId),
+  loadMissingDetails: (metadataId: string): Promise<boolean> => ipcRenderer.invoke('metadata-load-missing', metadataId),
+  getFilmCredits: (film: MovieSearchResult): Promise<FilmCredits> => ipcRenderer.invoke('metadata-credits', film),
   searchMetadata: (provider: MetadataProvider, keyword: string): Promise<MovieSearchResult[]> => ipcRenderer.invoke('metadata-search', provider, keyword),
   findMetadataFilm: (parsedName: string, year: number | undefined): Promise<MovieSearchResult | null> => ipcRenderer.invoke('metadata-find-film', parsedName, year),
   getFilmDetails: (film: MovieSearchResult): Promise<MovieSearchResult | null> => ipcRenderer.invoke('metadata-film-details', film),
