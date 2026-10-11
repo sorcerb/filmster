@@ -202,12 +202,16 @@ const MovieListCard = ({ item, isGrouped = false, onClick, onGroupChanged }: Mov
                 <button
                     className={`p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-full transition-colors ${showMenu ? 'opacity-100 bg-neutral-700 text-white' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-black/40'}`}
                     onClick={(e) => {
+                        if (!item.groupId) {
+                            handleEditMetadata(e);
+                            return;
+                        }
                         e.stopPropagation();
                         setShowMenu(!showMenu);
                     }}
-                    title={t('home.actions')}
+                    title={item.groupId ? t('home.actions') : t('home.editMetadata')}
                 >
-                    <EllipsisVertical className="h-4 w-4" />
+                    {item.groupId ? <EllipsisVertical className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                 </button>
                 {showMenu && (
                     <div

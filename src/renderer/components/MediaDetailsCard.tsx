@@ -105,7 +105,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
             <div className="relative flex gap-6 md:gap-8">
                 <div className="flex-1 min-w-0">
                     <div className="flex gap-4 md:gap-8 min-h-[calc(100dvh-7.5rem)]">
-                        <div className="h-[60dvh] min-h-80 max-w-[40%] aspect-[2/3] shrink-0">
+                        <div className="h-[70dvh] min-h-80 max-w-[40%] aspect-[2/3] shrink-0">
                             <div className="h-full bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg overflow-hidden shadow-2xl shadow-black/60 flex items-center justify-center">
                                 {metaData?.posterUrl ? (
                                     <img
@@ -219,8 +219,8 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
                                 )}
                             </div>
 
-                            {/* Centred in the space between the bottom of the poster (60dvh) and the bottom of the window */}
-                            <div className="mt-auto pt-6 min-h-[calc(40dvh-7.5rem)] flex items-center justify-center">
+                            {/* Centred in the space between the bottom of the poster (70dvh) and the bottom of the window */}
+                            <div className="mt-auto pt-6 min-h-[calc(30dvh-7.5rem)] flex items-center justify-center">
                                 <div className="w-96 max-w-full">
                                     {mediaItem.type !== 'series' ? (
                                         <PlayTile
@@ -244,7 +244,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
                 </div>
 
                 {(metaData?.genres?.length || metaData?.directors?.length || metaData?.actors?.length) ? (
-                    <div className="hidden xl:block w-72 shrink-0 h-[60dvh] min-h-80">
+                    <div className="hidden xl:block w-72 shrink-0 h-[70dvh] min-h-80">
                         <CreditsList genres={metaData?.genres} directors={metaData?.directors} actors={metaData?.actors} layout="column" />
                     </div>
                 ) : null}
