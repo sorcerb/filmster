@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Ban, ImagePlus, LoaderCircle, Search } from 'lucide-react';
 import { MediaFileModel } from '../models/MediaFileModel';
 import { MovieMetadata, MoveDbMediaSource } from '../models/MediaMetadata';
@@ -268,10 +269,20 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
         }
     };
 
-    return (
+    // In the library the modal belongs to a draggable card: rendered in body, so selecting text doesn't drag the card,
+    // and React events (which still bubble along the component tree) stop here
+    const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
+
+    return createPortal(
         <>
             <div
                 className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] cursor-default"
+                onClick={stopPropagation}
+                onDragStart={stopPropagation}
+                onDragOver={stopPropagation}
+                onDragEnter={stopPropagation}
+                onDragLeave={stopPropagation}
+                onDrop={stopPropagation}
             >
                 {/* Left: search and its results; right: what gets saved */}
                 <div
@@ -540,7 +551,8 @@ const EditMetadataModal = ({ isOpen, onClose, file, onSave }: EditMetadataModalP
                     </div>
                 </div>
             </div>
-        </>
+        </>,
+        document.body
     );
 };
 
