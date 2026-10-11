@@ -7,16 +7,19 @@ import { FileProgress } from '../hooks/useWatchProgress';
 import EditMetadataModal from './EditMetadataModal';
 import { useI18n } from '../i18n/I18nProvider';
 import CustomLinkButtons, { LINK_PILL_CLASS } from './CustomLinkButtons';
+import BackdropImage from './BackdropImage';
 
 interface MediaDetailsCardProps {
     // A movie, or a series with its episodes and seasons
     mediaItem: MediaFileModel;
     getProgress: (filePath: string) => FileProgress | null;
     play: (file: MediaFileModel, useOtherPlayer?: boolean) => void;
+    // Backdrop behind the whole page: the first title of a group only
+    showBackdrop?: boolean;
 }
 
 // Poster, metadata, file information and play buttons of one movie or series
-const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProps) => {
+const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }: MediaDetailsCardProps) => {
     const { t, language } = useI18n();
     const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
@@ -52,6 +55,11 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
             if (metadata) {
                 // posterUrl carries the file version (?v=mtime), a re-downloaded poster gets a new URL
                 setMetaData(metadata);
+                // Saved before backdrops were loaded, or found without one: the host looks it up (once a session at most)
+                if (!metadata.backdropUrl && !metadata.noBackdrop && (metadata.externalIds?.tmdb || metadata.externalIds?.kinopoisk)) {
+                    const found = await window.electron.loadMissingBackdrop(file.metadataId);
+                    if (found) setMetaData(await window.electron.loadMetadata(file.metadataId));
+                }
             }
         } catch (error) {
             console.error('Error loading metadata:', error);
@@ -68,8 +76,9 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
     const rating = metaData?.ratings?.[0];
 
     return (
-        <div className="bg-neutral-800 rounded-lg p-4 md:p-6 shadow-lg">
-            <div className="md:flex gap-6">
+        <div className="relative p-4 md:p-6">
+            {showBackdrop && <BackdropImage url={metaData?.backdropUrl} fullScreen />}
+            <div className="relative md:flex gap-6">
                 <div className="w-2/3 mx-auto md:mx-0 md:w-1/3 mb-6 md:mb-0">
                     <div className="aspect-[2/3] bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg flex items-center justify-center">
                         {metaData?.posterUrl ? (
@@ -165,7 +174,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
                         ))}
                     </div>
 
-                    <div className="mt-4 text-neutral-400 bg-neutral-900 p-4 rounded-lg overflow-y-auto">
+                    <div className="mt-4 text-neutral-300 bg-neutral-900/70 backdrop-blur-sm p-4 rounded-lg overflow-y-auto">
                         {metaData?.description ? metaData.description : (
                             <div className="flex items-center justify-between gap-4">
                                 <span className="text-sm">{t('details.noDescription')}</span>
@@ -182,7 +191,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
 
                     <div className="mt-6">
                         <h3 className="text-sm font-medium text-neutral-300 mb-2 cursor-pointer" onClick={() => { setHideFileInformation(!hideFileInformation) }}>{t('details.fileInformation')} {hideFileInformation ? <ChevronLeft className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />}</h3>
-                        <div className="bg-neutral-900 rounded-lg p-4 text-sm" style={{ display: hideFileInformation ? 'none' : 'block' }}>
+                        <div className="bg-neutral-900/70 backdrop-blur-sm rounded-lg p-4 text-sm" style={{ display: hideFileInformation ? 'none' : 'block' }}>
                             <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                                 <div>
                                     <p className="text-neutral-400">{t('details.fileName')}</p>
@@ -208,7 +217,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play }: MediaDetailsCardProp
                                 <List className="h-5 w-5 text-neutral-400" />
                                 <h3 className="text-sm font-medium text-neutral-300">{t('details.episodes')}</h3>
                             </div>
-                            <div className="bg-neutral-900 rounded-lg p-4">
+                            <div className="bg-neutral-900/70 backdrop-blur-sm rounded-lg p-4">
                                 {mediaItem.seasons && mediaItem.seasons.length > 0 ? (
                                     mediaItem.seasons.map(season => {
                                         const seasonEpisodes = mediaItem.episodes?.filter(ep => ep.season === season) || [];

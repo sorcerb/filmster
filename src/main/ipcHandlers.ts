@@ -16,8 +16,8 @@ import { existsSync } from 'fs';
 import { ApiSettings } from '../renderer/models/ApiSettings';
 import { getApiSettings, updateApiSettings } from '../renderer/stores/ApiSettingsStore';
 import { getPatterns, scanMediaFile } from './scanFiles';
-import { findFilm, getFilmDetails, getFilmPosters, getNews, getProviderOrder, searchFilms } from './metadataProviders';
-import { CustomPoster, MetadataProvider, NewsItem, NewsSection, PosterImage } from '../shared/metadataApi';
+import { findFilm, getFilmDetails, getFilmImages, getNews, getProviderOrder, searchFilms } from './metadataProviders';
+import { BackdropChange, CustomPoster, FilmImages, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
 import { getAutoScan, setAutoScan } from '../renderer/stores/AutoScanStore';
 import { getPlayerType, setPlayerType } from '../renderer/stores/PlayerSettingsStore';
 import { PlayerType } from '../renderer/models/PlayerType';
@@ -30,7 +30,7 @@ import { Language, translate } from '../shared/i18n';
 import { updateAutoScan } from './autoScan';
 import { getAutoUpdate, setAutoUpdate } from '../renderer/stores/AutoUpdateStore';
 import { checkForUpdates, downloadUpdate, getUpdateStatus, installUpdate, updateAutoUpdate } from './updater';
-import { enqueueMissingMetadata } from './autoMetadata';
+import { enqueueMissingMetadata, loadMissingBackdrop } from './autoMetadata';
 import { flushJsonWriters } from './jsonWriter';
 import { WatchProgress } from '../renderer/models/WatchProgressModel';
 import { saveWatchProgress, getWatchProgress, getAllWatchProgress } from '../renderer/stores/WatchProgressStore';
@@ -74,7 +74,9 @@ handle('update-api-settings', (_client, settings: ApiSettings): void => {
 
 handle('get-metadata-providers', (): MetadataProvider[] => getProviderOrder());
 
-handle('metadata-posters', (_client, film: MovieSearchResult): Promise<PosterImage[]> => getFilmPosters(film));
+handle('metadata-images', (_client, film: MovieSearchResult): Promise<FilmImages> => getFilmImages(film));
+
+handle('metadata-load-backdrop', (_client, metadataId: string): Promise<boolean> => loadMissingBackdrop(metadataId));
 
 handle('metadata-search', (_client, provider: MetadataProvider, keyword: string): Promise<MovieSearchResult[]> =>
     searchFilms(provider, keyword));
@@ -175,8 +177,8 @@ handle('rename-media-group', (_client, groupId: string, name: string): void => r
 
 handle('remove-media-group', (_client, groupId: string): void => removeMediaGroup(groupId));
 
-handle('save-metadata', async (_client, metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, customPoster?: CustomPoster | null): Promise<SaveMetadataResult> =>
-    saveMetadata(metadata, selectedMovie, customPoster ?? null));
+handle('save-metadata', async (_client, metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, customPoster?: CustomPoster | null, backdrop?: BackdropChange | null): Promise<SaveMetadataResult> =>
+    saveMetadata(metadata, selectedMovie, customPoster ?? null, backdrop ?? undefined));
 
 handle('load-metadata', async (_client, metadataId: string): Promise<MovieMetadata | null> => loadMetadata(metadataId));
 

@@ -87,7 +87,8 @@ const webApi: ElectronAPI = {
     getApiSettings: notAvailable,
     updateApiSettings: notAvailable,
     getMetadataProviders: () => call('get-metadata-providers'),
-    getFilmPosters: (film) => call('metadata-posters', film),
+    getFilmImages: (film) => call('metadata-images', film),
+    loadMissingBackdrop: (metadataId) => call('metadata-load-backdrop', metadataId),
     searchMetadata: (provider, keyword) => call('metadata-search', provider, keyword),
     findMetadataFilm: (parsedName, year) => call('metadata-find-film', parsedName, year),
     getFilmDetails: (film) => call('metadata-film-details', film),
@@ -108,7 +109,7 @@ const webApi: ElectronAPI = {
     getRegexPatterns: notAvailable,
     updateRegexPatterns: notAvailable,
 
-    saveMetadata: (metadata, selectedMovie, customPoster) => call('save-metadata', metadata, selectedMovie, customPoster),
+    saveMetadata: (metadata, selectedMovie, customPoster, backdrop) => call('save-metadata', metadata, selectedMovie, customPoster, backdrop),
     loadMetadata: (metadataId) => call('load-metadata', metadataId),
     openFile: notAvailable,
 

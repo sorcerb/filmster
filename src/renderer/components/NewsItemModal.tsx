@@ -5,6 +5,7 @@ import { MetadataProvider, NewsItem } from '../../shared/metadataApi';
 import { MovieSearchResult } from '../models/MovieSearchResult';
 import { useI18n } from '../i18n/I18nProvider';
 import CustomLinkButtons, { LINK_PILL_CLASS } from './CustomLinkButtons';
+import BackdropImage from './BackdropImage';
 
 export const isNewsItemMovie = (item: MovieSearchResult) => item.type === 'FILM' || item.type === 'VIDEO';
 
@@ -83,6 +84,7 @@ const NewsItemModal = ({ item, libraryFileId, onClose }: NewsItemModalProps) => 
                 className="relative bg-neutral-800 rounded-lg p-8 w-full max-w-5xl max-h-full overflow-y-auto border border-neutral-700 shadow-2xl flex flex-col sm:flex-row gap-8"
                 onClick={(e) => e.stopPropagation()}
             >
+                <BackdropImage url={film.backdropUrl} />
                 <button
                     onClick={onClose}
                     className="absolute top-3 right-3 p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-full transition-colors"
@@ -95,10 +97,10 @@ const NewsItemModal = ({ item, libraryFileId, onClose }: NewsItemModalProps) => 
                 <img
                     src={film.posterUrl || film.posterUrlPreview}
                     alt=""
-                    className="w-72 shrink-0 self-center sm:self-start aspect-[2/3] object-cover rounded bg-neutral-700"
+                    className="relative w-72 shrink-0 self-center sm:self-start aspect-[2/3] object-cover rounded bg-neutral-700"
                 />
 
-                <div className="flex-1 min-w-0">
+                <div className="relative flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-6 pr-8">
                         <div className="min-w-0">
                             <h2 className="text-3xl font-bold text-white">{title}</h2>

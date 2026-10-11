@@ -12,7 +12,7 @@ import { getWebServerSecret, getWebServerSettings, setWebServerSettings, WebServ
 import { SubtitleRequest } from '../renderer/models/MediaInfo';
 import { MovieMetadata } from '../renderer/models/MediaMetadata';
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
-import { isCustomPoster, METADATA_PROVIDERS, NEWS_SECTIONS } from '../shared/metadataApi';
+import { isBackdropChange, isCustomPoster, METADATA_PROVIDERS, NEWS_SECTIONS } from '../shared/metadataApi';
 
 // Serves the library to browsers on the local network: the renderer build as a web app,
 // POST /api/<channel> for the rpc handlers, GET /api/events (Server-Sent Events) for events,
@@ -59,13 +59,16 @@ const REMOTE_CHANNELS: Record<string, ArgsCheck | true> = {
     'rename-media-group': true,
     'remove-media-group': true,
     'load-metadata': ([metadataId]) => isSafeFileName(metadataId),
-    'save-metadata': ([metadata, selectedMovie, customPoster]: [MovieMetadata, MovieSearchResult | null, unknown]) =>
-        isSafeFileName(metadata?.id) && (!selectedMovie || (isWebUrl(selectedMovie.posterUrl) && isWebUrl(selectedMovie.posterUrlPreview)))
-        && (customPoster == null || isCustomPoster(customPoster)),
+    'save-metadata': ([metadata, selectedMovie, customPoster, backdrop]: [MovieMetadata, MovieSearchResult | null, unknown, unknown]) =>
+        isSafeFileName(metadata?.id)
+        && (!selectedMovie || (isWebUrl(selectedMovie.posterUrl) && isWebUrl(selectedMovie.posterUrlPreview) && isWebUrl(selectedMovie.backdropUrl)))
+        && (customPoster == null || isCustomPoster(customPoster))
+        && (backdrop == null || isBackdropChange(backdrop)),
     'get-metadata-providers': true,
     'metadata-search': ([provider]) => provider === 'tmdb' || provider === 'kinopoisk',
     'metadata-find-film': true,
-    'metadata-posters': ([film]) => typeof film?.filmId === 'number',
+    'metadata-images': ([film]) => typeof film?.filmId === 'number',
+    'metadata-load-backdrop': ([metadataId]) => isSafeFileName(metadataId),
     'metadata-film-details': ([film]) => typeof film?.filmId === 'number',
     'metadata-news': ([provider, section]) => METADATA_PROVIDERS.includes(provider) && NEWS_SECTIONS.includes(section),
     'get-language': true,

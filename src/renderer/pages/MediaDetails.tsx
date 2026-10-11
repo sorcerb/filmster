@@ -115,8 +115,8 @@ const MediaDetails = () => {
             )}
 
             <div className="flex flex-col gap-6">
-                {mediaItems.map(item => (
-                    <MediaDetailsCard key={item.id} mediaItem={item} getProgress={getProgress} play={play} />
+                {mediaItems.map((item, index) => (
+                    <MediaDetailsCard key={item.id} mediaItem={item} getProgress={getProgress} play={play} showBackdrop={index === 0} />
                 ))}
             </div>
         </div>

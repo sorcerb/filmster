@@ -1,6 +1,6 @@
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { latinToCyrillic } from '../renderer/utils/transliteration';
-import { FetchFn, MetadataApiError, NewsItem, NewsSection, PosterImage } from './metadataApi';
+import { FetchFn, FilmImages, MetadataApiError, NewsItem, NewsSection } from './metadataApi';
 
 // The Movie DB API v3: https://developer.themoviedb.org/reference
 const API_URL = 'https://api.themoviedb.org/3';
@@ -63,6 +63,7 @@ const toSearchResult = (item: any, mediaType: MediaType, genres: Map<number, str
         ratingVoteCount: item.vote_count || 0,
         posterUrl: item.poster_path ? `${IMAGE_URL}/w780${item.poster_path}` : '',
         posterUrlPreview: item.poster_path ? `${IMAGE_URL}/w185${item.poster_path}` : '',
+        backdropUrl: item.backdrop_path ? `${IMAGE_URL}/w1280${item.backdrop_path}` : undefined,
     };
 };
 
@@ -140,15 +141,24 @@ export const searchTmdbFilms = async (keyword: string, language: string, apiKey:
     return [];
 };
 
-// All posters of the title: in the app language, English and without text (TMDB orders them by votes)
-export const fetchTmdbPosters = async (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<PosterImage[]> => {
+// All posters and backdrops of the title: in the app language, English and without text (TMDB orders them by votes);
+// backdrops without text first, they suit a background best
+export const fetchTmdbImages = async (film: MovieSearchResult, language: string, apiKey: string, fetchFn: FetchFn): Promise<FilmImages> => {
     const mediaType: MediaType = film.type === 'FILM' ? 'movie' : 'tv';
     const imageLanguage = [...new Set([language.split('-')[0], 'en', 'null'])].join(',');
     const data = await request(`/${mediaType}/${film.filmId}/images`, { include_image_language: imageLanguage }, apiKey, fetchFn);
-    return (data?.posters ?? []).map((poster: { file_path: string }) => ({
-        url: `${IMAGE_URL}/w780${poster.file_path}`,
-        previewUrl: `${IMAGE_URL}/w185${poster.file_path}`,
-    }));
+    type Image = { file_path: string; iso_639_1: string | null };
+    const backdrops: Image[] = [...(data?.backdrops ?? [])].sort((a: Image, b: Image) => Number(a.iso_639_1 != null) - Number(b.iso_639_1 != null));
+    return {
+        posters: (data?.posters ?? []).map((poster: Image) => ({
+            url: `${IMAGE_URL}/w780${poster.file_path}`,
+            previewUrl: `${IMAGE_URL}/w185${poster.file_path}`,
+        })),
+        backdrops: backdrops.map(backdrop => ({
+            url: `${IMAGE_URL}/w1280${backdrop.file_path}`,
+            previewUrl: `${IMAGE_URL}/w300${backdrop.file_path}`,
+        })),
+    };
 };
 
 // Full details of a title (genres and countries, which list items don't all have)

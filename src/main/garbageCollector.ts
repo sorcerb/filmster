@@ -1,11 +1,11 @@
 import Store from 'electron-store';
 import path from 'path';
-import { listMetadataFiles, removeMetadataFile } from '../renderer/stores/metadataService';
+import { getMetadataIdOfFile, listMetadataFiles, removeMetadataFile } from '../renderer/stores/metadataService';
 import { pruneDurationCache } from '../renderer/stores/DurationCacheStore';
 import { pruneEpisodeMarkers } from './episodeMarkers';
 import { getAllMediaFiles, scanEvents } from './scanFiles';
 
-// Removes what was saved for files that left the library: metadata and posters of titles no file uses any more,
+// Removes what was saved for files that left the library: metadata, posters and backdrops of titles no file uses any more,
 // durations and episode markers of files that are gone. Runs on startup and after scans that changed something.
 // Metadata is kept for a week after it became unused: a library folder removed by mistake or renamed files
 // get their posters and hand-made corrections back when they return.
@@ -28,7 +28,7 @@ const collectGarbage = () => {
     if (!files.length) return;
 
     const usedIds = new Set(files.map(file => file.metadataId.toLowerCase()));
-    const isUsed = (name: string) => usedIds.has(name) || (name.endsWith('_preview') && usedIds.has(name.slice(0, -'_preview'.length)));
+    const isUsed = (name: string) => usedIds.has(name) || usedIds.has(getMetadataIdOfFile(name));
 
     const now = Date.now();
     const unusedSince = store.get('unusedSince');

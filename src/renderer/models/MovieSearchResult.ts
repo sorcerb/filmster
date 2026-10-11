@@ -17,4 +17,6 @@ export interface MovieSearchResult {
     ratingVoteCount: number;
     posterUrl: string;
     posterUrlPreview: string;
+    // Wide background picture: TMDB backdrop, Kinopoisk cover (details only, keyword search results have none)
+    backdropUrl?: string;
 }

@@ -22,6 +22,23 @@ export interface PosterImage {
     previewUrl: string;
 }
 
+// Posters and backdrops (wide background pictures) of the film, as listed by the provider
+export interface FilmImages {
+    posters: PosterImage[];
+    backdrops: PosterImage[];
+}
+
+// What saving metadata does with the backdrop: the selected movie's one (automatic loading; none removes the old one),
+// keep the saved one, an image picked in the editor (provider URL or own JPEG data URL), or none (also stops the lookup)
+export type BackdropChange = { kind: 'movie' } | { kind: 'keep' } | { kind: 'image'; url: string } | { kind: 'none' };
+
+export const isBackdropChange = (value: unknown): value is BackdropChange => {
+    if (typeof value !== 'object' || value === null) return false;
+    const { kind, url } = value as { kind?: unknown; url?: unknown };
+    if (kind === 'image') return typeof url === 'string' && (/^https?:\/\//i.test(url) || url.startsWith('data:image/jpeg;base64,'));
+    return kind === 'movie' || kind === 'keep' || kind === 'none';
+};
+
 // Own poster picked in the metadata editor: JPEG data URLs, scaled down by the renderer
 export interface CustomPoster {
     poster: string;

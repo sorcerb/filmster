@@ -1,7 +1,8 @@
 import { MediaFileModel } from '../renderer/models/MediaFileModel';
-import { getPosterPath, loadMetadata, saveMetadata } from '../renderer/stores/metadataService';
+import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
+import { getBackdropPath, getPosterPath, loadMetadata, saveBackdrop, saveMetadata } from '../renderer/stores/metadataService';
 import { buildMetadataFromFilm, MetadataApiError, MetadataProvider } from '../shared/metadataApi';
-import { findFilm, hasAnyProviderKey } from './metadataProviders';
+import { findFilm, getFilmDetails, getProviderOrder, hasAnyProviderKey } from './metadataProviders';
 import { getAllMediaFiles, scanEvents } from './scanFiles';
 import { broadcast } from './rpc';
 
@@ -77,6 +78,51 @@ const processQueue = async () => {
     } finally {
         isProcessing = false;
     }
+};
+
+// Titles saved before backdrops were loaded, or found by a Kinopoisk keyword search (its results have none):
+// the backdrop is looked up when the title's page is opened, once per session, and a month later again if the provider had none
+const BACKDROP_RECHECK_MS = 30 * 24 * 60 * 60 * 1000;
+const backdropLookups = new Map<string, Promise<boolean>>();
+
+const lookUpBackdrop = async (metadataId: string): Promise<boolean> => {
+    const loaded = loadMetadata(metadataId);
+    if (!loaded || loaded.noBackdrop || getBackdropPath(metadataId)) return false;
+    if (loaded.backdropCheckedAt && Date.now() - loaded.backdropCheckedAt < BACKDROP_RECHECK_MS) return false;
+
+    const { tmdb, kinopoisk } = loaded.externalIds ?? {};
+    const provider: MetadataProvider | null = tmdb ? 'tmdb' : kinopoisk ? 'kinopoisk' : null;
+    if (!provider || !getProviderOrder().includes(provider)) return false;
+    const film = {
+        source: provider,
+        filmId: Number(tmdb ?? kinopoisk),
+        type: loaded.type === 'series' ? 'TV_SERIES' : 'FILM',
+    } as MovieSearchResult;
+
+    const details = await getFilmDetails(film);
+    const found = !!details?.backdropUrl && await saveBackdrop(metadataId, details.backdropUrl, true);
+    // Poster URLs are the files' ones, set when loading
+    const { posterUrl, posterUrlPreview, backdropUrl, ...metadata } = loaded;
+    if (!found) {
+        await saveMetadata({ ...metadata, backdropCheckedAt: Date.now() }, null, null, { kind: 'keep' });
+        return false;
+    }
+    broadcast('metadata-updated', metadataId);
+    return true;
+};
+
+// True if a backdrop was saved
+export const loadMissingBackdrop = (metadataId: string): Promise<boolean> => {
+    const key = metadataId.toLowerCase();
+    let lookup = backdropLookups.get(key);
+    if (!lookup) {
+        lookup = lookUpBackdrop(metadataId).catch(error => {
+            console.error(`Error loading backdrop for ${metadataId}:`, error);
+            return false;
+        });
+        backdropLookups.set(key, lookup);
+    }
+    return lookup;
 };
 
 // Library files that still have no metadata: on startup and after the API keys change,

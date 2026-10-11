@@ -1,6 +1,6 @@
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { latinToCyrillic } from '../renderer/utils/transliteration';
-import { FetchFn, MetadataApiError, NewsItem, NewsSection, PosterImage } from './metadataApi';
+import { FetchFn, FilmImages, MetadataApiError, NewsItem, NewsSection, PosterImage } from './metadataApi';
 
 const SEARCH_URL = 'https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword';
 const FILM_URL = 'https://kinopoiskapiunofficial.tech/api/v2.2/films';
@@ -89,6 +89,7 @@ const fetchFilmById = async (id: string, apiKey: string, fetchFn: FetchFn): Prom
         ratingVoteCount: film.ratingKinopoiskVoteCount || 0,
         posterUrl: film.posterUrl,
         posterUrlPreview: film.posterUrlPreview,
+        backdropUrl: film.coverUrl || undefined,
     };
 };
 
@@ -128,9 +129,9 @@ export const searchKinopoiskFilms = async (keyword: string, apiKey: string, fetc
     return [];
 };
 
-// Posters of the film, first page only (20): each page is a request out of the key's daily quota
-export const fetchKinopoiskPosters = async (filmId: number, apiKey: string, fetchFn: FetchFn): Promise<PosterImage[]> => {
-    const response = await fetchFn(`${FILM_URL}/${filmId}/images?type=POSTER&page=1`, {
+// Images of the film of one type, first page only (20): each page is a request out of the key's daily quota
+const fetchImagesOfType = async (filmId: number, type: 'POSTER' | 'WALLPAPER', apiKey: string, fetchFn: FetchFn): Promise<PosterImage[]> => {
+    const response = await fetchFn(`${FILM_URL}/${filmId}/images?type=${type}&page=1`, {
         method: 'GET',
         headers: {
             'X-API-KEY': apiKey,
@@ -146,6 +147,20 @@ export const fetchKinopoiskPosters = async (filmId: number, apiKey: string, fetc
     }
     const data = JSON.parse(await response.text());
     return (data.items ?? []).map((item: { imageUrl: string; previewUrl: string }) => ({ url: item.imageUrl, previewUrl: item.previewUrl || item.imageUrl }));
+};
+
+// Posters, and for the backdrops the cover (the wide picture of the film's page; keyword search results don't have it,
+// so it takes the details request) and wallpapers. A failed backdrop request leaves the posters.
+export const fetchKinopoiskImages = async (film: MovieSearchResult, apiKey: string, fetchFn: FetchFn): Promise<FilmImages> => {
+    const [posters, coverUrl, wallpapers] = await Promise.all([
+        fetchImagesOfType(film.filmId, 'POSTER', apiKey, fetchFn),
+        film.backdropUrl
+            ? Promise.resolve(film.backdropUrl)
+            : fetchFilmById(String(film.filmId), apiKey, fetchFn).then(details => details?.backdropUrl, () => undefined),
+        fetchImagesOfType(film.filmId, 'WALLPAPER', apiKey, fetchFn).catch(() => [] as PosterImage[]),
+    ]);
+    const cover: PosterImage[] = coverUrl ? [{ url: coverUrl, previewUrl: coverUrl }] : [];
+    return { posters, backdrops: [...cover, ...wallpapers.filter(wallpaper => wallpaper.url !== coverUrl)] };
 };
 
 // Full details of a film (the description, which list items don't have)
@@ -185,6 +200,7 @@ const toNewsItem = (film: any): NewsItem => ({
     ratingVoteCount: film.ratingKinopoiskVoteCount || 0,
     posterUrl: film.posterUrl,
     posterUrlPreview: film.posterUrlPreview,
+    backdropUrl: film.coverUrl || undefined,
     releaseDate: film.premiereRu || undefined,
 });
 

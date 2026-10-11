@@ -50,6 +50,10 @@ export interface MovieMetadata {
     posterUrl?: string;
     posterUrlPreview?: string;
     backdropUrl?: string;
+    // Backdrop turned off in the metadata editor: not shown and not looked up
+    noBackdrop?: boolean;
+    // When the provider was last asked for a backdrop and had none (ms)
+    backdropCheckedAt?: number;
     trailerUrl?: string;
     
     numberOfSeasons?: number;

@@ -2,9 +2,9 @@ import { net } from 'electron';
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { getApiSettings } from '../renderer/stores/ApiSettingsStore';
 import { getLanguage } from '../renderer/stores/LanguageStore';
-import { getDefaultProvider, getProviderApiKey, METADATA_PROVIDERS, MetadataApiError, MetadataProvider, NewsItem, NewsSection, PosterImage } from '../shared/metadataApi';
-import { fetchKinopoiskDetails, fetchKinopoiskNews, fetchKinopoiskPosters, findKinopoiskFilm, searchKinopoiskFilms } from '../shared/kinopoisk';
-import { fetchTmdbDetails, fetchTmdbNews, fetchTmdbPosters, findTmdbFilm, searchTmdbFilms } from '../shared/tmdb';
+import { FilmImages, getDefaultProvider, getProviderApiKey, METADATA_PROVIDERS, MetadataApiError, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
+import { fetchKinopoiskDetails, fetchKinopoiskImages, fetchKinopoiskNews, findKinopoiskFilm, searchKinopoiskFilms } from '../shared/kinopoisk';
+import { fetchTmdbDetails, fetchTmdbImages, fetchTmdbNews, findTmdbFilm, searchTmdbFilms } from '../shared/tmdb';
 
 // Metadata API requests go through the main process: no CORS in the renderer, and the API keys stay here
 
@@ -24,12 +24,12 @@ export const searchFilms = (provider: MetadataProvider, keyword: string): Promis
 };
 
 // Kinopoisk keyword search results have no source
-export const getFilmPosters = (film: MovieSearchResult): Promise<PosterImage[]> => {
+export const getFilmImages = (film: MovieSearchResult): Promise<FilmImages> => {
     const provider: MetadataProvider = film.source === 'tmdb' ? 'tmdb' : 'kinopoisk';
     const apiKey = getProviderApiKey(provider, getApiSettings());
     return provider === 'tmdb'
-        ? fetchTmdbPosters(film, getLanguage(), apiKey, net.fetch)
-        : fetchKinopoiskPosters(film.filmId, apiKey, net.fetch);
+        ? fetchTmdbImages(film, getLanguage(), apiKey, net.fetch)
+        : fetchKinopoiskImages(film, apiKey, net.fetch);
 };
 
 const findFilmWith = (provider: MetadataProvider, parsedName: string, year: number | undefined): Promise<MovieSearchResult | null> => {

@@ -6,7 +6,7 @@ import { MediaFileModel, RegexPatterns } from '../renderer/models/MediaFileModel
 import { MovieSearchResult } from '../renderer/models/MovieSearchResult';
 import { MovieMetadata } from '../renderer/models/MediaMetadata';
 import { ApiSettings } from '../renderer/models/ApiSettings';
-import type { CustomPoster, MetadataProvider, NewsItem, NewsSection, PosterImage } from '../shared/metadataApi';
+import type { BackdropChange, CustomPoster, FilmImages, MetadataProvider, NewsItem, NewsSection } from '../shared/metadataApi';
 import { LibraryFileProgress, WatchProgress } from '../renderer/models/WatchProgressModel';
 import { MpcWatchEntry } from '../renderer/stores/MpcHistoryService';
 import { MediaInfo, SubtitleCue, SubtitleRequest } from '../renderer/models/MediaInfo';
@@ -42,7 +42,8 @@ const api = {
   getApiSettings: (): Promise<ApiSettings> => ipcRenderer.invoke('get-api-settings'),
   updateApiSettings: (settings: ApiSettings): Promise<void> => ipcRenderer.invoke('update-api-settings', settings),
   getMetadataProviders: (): Promise<MetadataProvider[]> => ipcRenderer.invoke('get-metadata-providers'),
-  getFilmPosters: (film: MovieSearchResult): Promise<PosterImage[]> => ipcRenderer.invoke('metadata-posters', film),
+  getFilmImages: (film: MovieSearchResult): Promise<FilmImages> => ipcRenderer.invoke('metadata-images', film),
+  loadMissingBackdrop: (metadataId: string): Promise<boolean> => ipcRenderer.invoke('metadata-load-backdrop', metadataId),
   searchMetadata: (provider: MetadataProvider, keyword: string): Promise<MovieSearchResult[]> => ipcRenderer.invoke('metadata-search', provider, keyword),
   findMetadataFilm: (parsedName: string, year: number | undefined): Promise<MovieSearchResult | null> => ipcRenderer.invoke('metadata-find-film', parsedName, year),
   getFilmDetails: (film: MovieSearchResult): Promise<MovieSearchResult | null> => ipcRenderer.invoke('metadata-film-details', film),
@@ -63,7 +64,7 @@ const api = {
   getRegexPatterns: (): Promise<RegexPatterns> => ipcRenderer.invoke('get-regex-patterns'),
   updateRegexPatterns: (patterns: RegexPatterns): Promise<void> => ipcRenderer.invoke('update-regex-patterns', patterns),
 
-  saveMetadata: (metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, customPoster?: CustomPoster | null): Promise<{ metadataPath: string; posterPaths: string[]; posterError?: string }> => ipcRenderer.invoke('save-metadata', metadata, selectedMovie, customPoster),
+  saveMetadata: (metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, customPoster?: CustomPoster | null, backdrop?: BackdropChange): Promise<{ metadataPath: string; posterPaths: string[]; posterError?: string; backdropError?: string }> => ipcRenderer.invoke('save-metadata', metadata, selectedMovie, customPoster, backdrop),
   loadMetadata: (metadataId: string): Promise<MovieMetadata | null> => ipcRenderer.invoke('load-metadata', metadataId),
   openFile: (filePath: string): Promise<void> => ipcRenderer.invoke('open-file', filePath),
 

@@ -1,9 +1,9 @@
-import { app, net } from 'electron';
+import { app, nativeImage, net } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { MovieMetadata } from '../../renderer/models/MediaMetadata';
 import { MovieSearchResult } from '../../renderer/models/MovieSearchResult';
-import { CustomPoster } from '../../shared/metadataApi';
+import { BackdropChange, CustomPoster } from '../../shared/metadataApi';
 
 let _metadataFolder: string | null = null;
 let _postersFolder: string | null = null;
@@ -37,38 +37,101 @@ function ensureDirectoriesExist() {
 }
 
 // net.fetch uses Chromium's network stack (system proxy, VPN, certificates), same as the renderer
-async function downloadFile(url: string, outputPath: string): Promise<void> {
+async function fetchImage(url: string): Promise<Buffer> {
     const response = await net.fetch(url);
     if (!response.ok) {
         throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
     }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    fs.writeFileSync(outputPath, buffer);
+    return Buffer.from(await response.arrayBuffer());
+}
+
+async function downloadFile(url: string, outputPath: string): Promise<void> {
+    fs.writeFileSync(outputPath, await fetchImage(url));
 }
 
 const decodeDataUrl = (dataUrl: string): Buffer => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+
+// Backdrop file: <id>_backdrop.<ext>, next to the posters
+const BACKDROP_SUFFIX = '_backdrop';
+// Backdrops found automatically must be landscape and wide enough: none is better than a stretched blur
+const MIN_BACKDROP_WIDTH = 1000;
+const MIN_BACKDROP_RATIO = 1.3;
+
+const isBackdropSize = (image: Buffer): boolean => {
+    const { width, height } = nativeImage.createFromBuffer(image).getSize();
+    // Formats nativeImage can't read (WebP) come out empty: kept, the provider listed them as backdrops
+    if (!width || !height) return true;
+    return width >= MIN_BACKDROP_WIDTH && width / height >= MIN_BACKDROP_RATIO;
+};
+
+// Saves the backdrop from a provider URL or a JPEG data URL; false if checkSize rejects it
+export async function saveBackdrop(metadataId: string, url: string, checkSize: boolean): Promise<boolean> {
+    const isDataUrl = url.startsWith('data:');
+    const image = isDataUrl ? decodeDataUrl(url) : await fetchImage(url);
+    if (checkSize && !isBackdropSize(image)) return false;
+    ensureDirectoriesExist();
+    const name = `${metadataId}${BACKDROP_SUFFIX}`;
+    removePosters(name);
+    fs.writeFileSync(path.join(getPostersFolder(), `${name}${isDataUrl ? '.jpg' : getImageExt(url)}`), image);
+    posterIndex = null;
+    metadataCache.delete(metadataId.toLowerCase());
+    return true;
+}
+
+const removeBackdrop = (metadataId: string) => {
+    removePosters(`${metadataId}${BACKDROP_SUFFIX}`);
+    posterIndex = null;
+};
+
+// Sets noBackdrop / backdropCheckedAt of the metadata to what was done
+async function applyBackdropChange(metadata: MovieMetadata, selectedMovie: MovieSearchResult | null, change: BackdropChange) {
+    if (change.kind === 'keep') return;
+    delete metadata.noBackdrop;
+    delete metadata.backdropCheckedAt;
+    if (change.kind === 'none') {
+        removeBackdrop(metadata.id);
+        metadata.noBackdrop = true;
+    } else if (change.kind === 'image') {
+        await saveBackdrop(metadata.id, change.url, false);
+    } else {
+        removeBackdrop(metadata.id);
+        if (selectedMovie?.backdropUrl) await saveBackdrop(metadata.id, selectedMovie.backdropUrl, true);
+    }
+}
 
 export interface SaveMetadataResult {
     metadataPath: string;
     posterPaths: string[];
     posterError?: string;
+    backdropError?: string;
 }
 
 export async function saveMetadata(
     metadata: MovieMetadata,
     selectedMovie: MovieSearchResult | null,
-    customPoster: CustomPoster | null = null
+    customPoster: CustomPoster | null = null,
+    backdrop: BackdropChange = { kind: 'movie' }
 ): Promise<SaveMetadataResult> {
 
     ensureDirectoriesExist();
     const metadataPath = path.join(getMetadataFolder(), `${metadata.id}.json`);
+    const result: SaveMetadataResult = { metadataPath, posterPaths: [] };
+
+    // Before the metadata file is written: the outcome goes into it
+    try {
+        await applyBackdropChange(metadata, selectedMovie, backdrop);
+    } catch (error) {
+        console.error('Error saving backdrop:', error);
+        result.backdropError = String(error);
+    }
+
     // Remove first so the file gets the current name casing (Windows keeps the old one on overwrite)
     if (fs.existsSync(metadataPath)) {
         fs.unlinkSync(metadataPath);
     }
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
-
-    const result: SaveMetadataResult = { metadataPath, posterPaths: [] };
+    // The backdrop URL is the file's one, set when loading
+    const { backdropUrl: _backdropUrl, ...storedMetadata } = metadata;
+    fs.writeFileSync(metadataPath, JSON.stringify(storedMetadata, null, 2), 'utf-8');
 
     if (customPoster) {
         try {
@@ -98,8 +161,17 @@ export async function saveMetadata(
             if (selectedMovie.posterUrlPreview) {
                 const previewPath = path.join(getPostersFolder(), `${baseName}_preview${getImageExt(selectedMovie.posterUrlPreview)}`);
                 removePosters(`${baseName}_preview`);
-                await downloadFile(selectedMovie.posterUrlPreview, previewPath);
-                result.posterPaths.push(previewPath);
+                try {
+                    await downloadFile(selectedMovie.posterUrlPreview, previewPath);
+                    result.posterPaths.push(previewPath);
+                } catch (error) {
+                    // Some previews fail to download on some networks while the full image works
+                    if (!selectedMovie.posterUrl) throw error;
+                    const fallbackPath = path.join(getPostersFolder(), `${baseName}_preview${getImageExt(selectedMovie.posterUrl)}`);
+                    removePosters(`${baseName}_preview`);
+                    await downloadFile(selectedMovie.posterUrl, fallbackPath);
+                    result.posterPaths.push(fallbackPath);
+                }
             }
         } catch (error) {
             console.error('Error saving posters:', error);
@@ -107,7 +179,7 @@ export async function saveMetadata(
         }
     }
     metadataCache.delete(metadata.id.toLowerCase());
-    if (selectedMovie || customPoster) posterIndex = null;
+    if (selectedMovie || customPoster || backdrop.kind !== 'keep') posterIndex = null;
     return result;
 }
 
@@ -135,7 +207,7 @@ function removePosters(posterName: string) {
     }
 }
 
-type LoadedMetadata = MovieMetadata & { posterUrl?: string; posterUrlPreview?: string };
+type LoadedMetadata = MovieMetadata & { posterUrl?: string; posterUrlPreview?: string; backdropUrl?: string };
 
 // Metadata and the poster file list are read from disk once and kept in memory;
 // saveMetadata() invalidates them. Keys are lower-cased: Windows file names are case-insensitive.
@@ -183,7 +255,8 @@ export function loadMetadata(metadataId: string): LoadedMetadata | null {
             result = {
                 ...metadata,
                 posterUrl: getPosterUrl(getPosterPath(metadataId, false)),
-                posterUrlPreview: getPosterUrl(getPosterPath(metadataId, true))
+                posterUrlPreview: getPosterUrl(getPosterPath(metadataId, true)),
+                backdropUrl: metadata.noBackdrop ? undefined : getPosterUrl(getBackdropPath(metadataId))
             };
         } catch (error) {
             console.error(`Error reading metadata ${metadataPath}:`, error);
@@ -200,7 +273,15 @@ export function getPosterPath(metadataId: string, isPreview = false): string | n
     return posterFile ? path.join(getPostersFolder(), posterFile) : null;
 }
 
-// Metadata (<id>.json) and poster (<id>.jpg, <id>_preview.jpg...) file names in the metadata folder
+export function getBackdropPath(metadataId: string): string | null {
+    const backdropFile = getPosterIndex().get(`${metadataId}${BACKDROP_SUFFIX}`.toLowerCase());
+    return backdropFile ? path.join(getPostersFolder(), backdropFile) : null;
+}
+
+// Metadata id a metadata, poster or backdrop file name (without extension) belongs to
+export const getMetadataIdOfFile = (name: string): string => name.replace(/_(preview|backdrop)$/i, '');
+
+// Metadata (<id>.json), poster (<id>.jpg, <id>_preview.jpg...) and backdrop (<id>_backdrop.jpg) file names in the metadata folder
 export function listMetadataFiles(): string[] {
     const folder = getMetadataFolder();
     if (!fs.existsSync(folder)) return [];
@@ -214,6 +295,6 @@ export function removeMetadataFile(fileName: string) {
     fs.unlinkSync(path.join(getMetadataFolder(), fileName));
     const name = path.basename(fileName, path.extname(fileName)).toLowerCase();
     metadataCache.delete(name);
-    metadataCache.delete(name.replace(/_preview$/, ''));
+    metadataCache.delete(getMetadataIdOfFile(name));
     posterIndex = null;
 }
