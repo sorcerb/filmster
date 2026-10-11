@@ -16,7 +16,7 @@ const PersonPhoto = ({ person, className }: { person: Person; className: string 
     </div>
 );
 
-const CreditsList = ({ directors = [], actors = [], layout = 'row' }: { directors?: Person[]; actors?: Person[]; layout?: 'row' | 'column' }) => {
+const CreditsList = ({ genres = [], directors = [], actors = [], layout = 'row' }: { genres?: string[]; directors?: Person[]; actors?: Person[]; layout?: 'row' | 'column' }) => {
     const { t } = useI18n();
     const castRowRef = useRef<HTMLDivElement>(null);
 
@@ -36,11 +36,19 @@ const CreditsList = ({ directors = [], actors = [], layout = 'row' }: { director
         return () => row.removeEventListener('wheel', handleWheel);
     }, [actors.length]);
 
-    if (!directors.length && !actors.length) return null;
-
     if (layout === 'column') {
+        if (!genres.length && !directors.length && !actors.length) return null;
         return (
             <div className="h-full flex flex-col gap-4 bg-neutral-900/75 backdrop-blur-md p-4 rounded-lg">
+                {genres.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {genres.map(genre => (
+                            <span key={genre} className="px-3 py-1 bg-white/5 border border-white/10 text-neutral-200 rounded-full text-xs">
+                                {genre}
+                            </span>
+                        ))}
+                    </div>
+                )}
                 {directors.length > 0 && (
                     <div>
                         <h3 className="text-sm text-neutral-400 mb-2">{t('details.directors')}</h3>
@@ -74,6 +82,8 @@ const CreditsList = ({ directors = [], actors = [], layout = 'row' }: { director
             </div>
         );
     }
+
+    if (!directors.length && !actors.length) return null;
 
     return (
         <div className="mt-4 space-y-3 [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]">

@@ -34,8 +34,8 @@ export const markAsCompleted = (filePath: string): void => {
     }
 };
 
-export const clearWatchProgress = (filePath: string): void => {
+export const clearWatchProgress = (filePaths: string[]): void => {
     const data = store.get('data');
-    delete data[filePath];
+    filePaths.forEach(filePath => delete data[filePath]);
     store.set('data', data);
 };

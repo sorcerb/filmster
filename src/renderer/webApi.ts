@@ -122,6 +122,7 @@ const webApi: ElectronAPI = {
     saveWatchProgress: (filePath, progress) => call('save-watch-progress', filePath, progress),
     getWatchProgress: (filePath) => call('get-watch-progress', filePath),
     getAllWatchProgress: () => call('get-all-watch-progress'),
+    clearWatchProgress: (filePaths) => call('clear-watch-progress', filePaths),
     getTrackPreference: (key) => call('get-track-preference', key),
     saveTrackPreference: (key, preference) => call('save-track-preference', key, preference),
     getMpcHistory: () => Promise.resolve({}),

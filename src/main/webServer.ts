@@ -74,6 +74,7 @@ const REMOTE_CHANNELS: Record<string, ArgsCheck | true> = {
     'get-watch-progress': true,
     'save-watch-progress': true,
     'get-all-watch-progress': true,
+    'clear-watch-progress': ([filePaths]) => Array.isArray(filePaths) && filePaths.every(filePath => typeof filePath === 'string'),
     'get-track-preference': true,
     'save-track-preference': ([key, preference]) => typeof key === 'string' && typeof preference === 'object' && preference !== null,
     'get-library-progress': true,

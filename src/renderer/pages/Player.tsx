@@ -236,7 +236,9 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
                 const savedSubtitle = trackPreference?.subtitle && info
                     ? findMatchingTrack(trackPreference.subtitle, info.subtitleTracks.map(getSubtitleSignature))
                     : null;
-                const resumeAt = progress && !progress.isCompleted && progress.lastPosition > 10 ? progress.lastPosition : 0;
+                // Stopped in the credits counts as watched: the next viewer starts it from the beginning
+                const isWatched = !!progress && (progress.isCompleted || (progress.totalDuration > 0 && progress.lastPosition / progress.totalDuration >= 0.9));
+                const resumeAt = progress && !isWatched && progress.lastPosition > 10 ? progress.lastPosition : 0;
                 let position = resumeAt;
                 if (resumeAt && needsTranscode(item.fullPath, info, audio)) {
                     position = await getStreamStart(item.fullPath, info, resumeAt);
@@ -301,10 +303,10 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
             totalDuration: duration,
             percentage: Math.round(percentage),
             lastWatched: new Date().toISOString(),
-            isCompleted: percentage >= 95,
+            isCompleted: percentage >= 95 || (markers?.creditsStart != null && position >= markers.creditsStart),
         };
         await window.electron.saveWatchProgress(mediaItem.fullPath, progress);
-    }, [mediaItem, duration]);
+    }, [mediaItem, duration, markers]);
 
     useEffect(() => {
         if (!mediaItem) return;

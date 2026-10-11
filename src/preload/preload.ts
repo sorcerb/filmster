@@ -87,6 +87,7 @@ const api = {
   saveWatchProgress: (filePath: string, progress: WatchProgress): Promise<void> => ipcRenderer.invoke('save-watch-progress', filePath, progress),
   getWatchProgress: (filePath: string): Promise<WatchProgress | undefined> => ipcRenderer.invoke('get-watch-progress', filePath),
   getAllWatchProgress: (): Promise<Record<string, WatchProgress>> => ipcRenderer.invoke('get-all-watch-progress'),
+  clearWatchProgress: (filePaths: string[]): Promise<void> => ipcRenderer.invoke('clear-watch-progress', filePaths),
   getTrackPreference: (key: string): Promise<TrackPreference | undefined> => ipcRenderer.invoke('get-track-preference', key),
   saveTrackPreference: (key: string, preference: TrackPreference): Promise<void> => ipcRenderer.invoke('save-track-preference', key, preference),
   getMpcHistory: (): Promise<Record<string, MpcWatchEntry>> => ipcRenderer.invoke('get-mpc-history'),

@@ -5,7 +5,7 @@ import { useWatchProgress } from '../hooks/useWatchProgress';
 import MediaDetailsCard from '../components/MediaDetailsCard';
 import BackEdgeButton from '../components/BackEdgeButton';
 import { useI18n } from '../i18n/I18nProvider';
-import { compareGroupMembers, getMediaTitle } from '../utils/mediaGroups';
+import { compareGroupMembers } from '../utils/mediaGroups';
 
 const withEpisodes = (item: MediaFileModel, episodes: MediaFileModel[]): MediaFileModel => {
     const seasons = Array.from(new Set(episodes.map(ep => ep.season ?? 1))).sort((a, b) => a - b);
@@ -36,9 +36,8 @@ const MediaDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [mediaItems, setMediaItems] = useState<MediaFileModel[]>([]);
-    const [groupName, setGroupName] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const { getProgress, play } = useWatchProgress(10000);
+    const { playerType, getProgress, play, clearProgress } = useWatchProgress(10000);
 
     const loadMediaItem = async () => {
         try {
@@ -50,7 +49,6 @@ const MediaDetails = () => {
                 const files = (await window.electron.getMediaFiles())
                     .filter(file => file.groupId === item.groupId)
                     .sort(compareGroupMembers);
-                setGroupName(item.groupName || getMediaTitle(files[0]));
                 setMediaItems(splitGroup(files));
             } else if (item.type === MediaType.Series) {
                 const episodes = (await window.electron.getMediaFiles()).filter(file =>
@@ -100,13 +98,9 @@ const MediaDetails = () => {
         <div className="pl-14 pr-4 md:px-10 xl:px-16 py-2 md:py-4">
             <BackEdgeButton label={t('details.backToLibrary')} />
 
-            {groupName && (
-                <h1 className="text-2xl font-bold text-white mb-4">{groupName}</h1>
-            )}
-
             <div className="flex flex-col gap-6">
                 {mediaItems.map((item, index) => (
-                    <MediaDetailsCard key={item.id} mediaItem={item} getProgress={getProgress} play={play} showBackdrop={index === 0} />
+                    <MediaDetailsCard key={item.id} mediaItem={item} getProgress={getProgress} play={play} clearProgress={playerType === 'internal' ? clearProgress : undefined} showBackdrop={index === 0} />
                 ))}
             </div>
         </div>

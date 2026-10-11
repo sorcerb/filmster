@@ -33,7 +33,7 @@ import { checkForUpdates, downloadUpdate, getUpdateStatus, installUpdate, update
 import { enqueueMissingMetadata, forgetMissingDetails, loadMissingDetails } from './autoMetadata';
 import { flushJsonWriters } from './jsonWriter';
 import { WatchProgress } from '../renderer/models/WatchProgressModel';
-import { saveWatchProgress, getWatchProgress, getAllWatchProgress } from '../renderer/stores/WatchProgressStore';
+import { saveWatchProgress, getWatchProgress, getAllWatchProgress, clearWatchProgress } from '../renderer/stores/WatchProgressStore';
 import { TrackPreference } from '../renderer/models/TrackPreference';
 import { getTrackPreference, saveTrackPreference } from '../renderer/stores/TrackPreferencesStore';
 import { readMpcHistory, MpcWatchEntry } from '../renderer/stores/MpcHistoryService';
@@ -196,6 +196,8 @@ handle('get-watch-progress', async (_client, filePath: string): Promise<WatchPro
 handle('get-all-watch-progress', async (): Promise<Record<string, WatchProgress>> => {
     return getAllWatchProgress();
 });
+
+handle('clear-watch-progress', (_client, filePaths: string[]): void => clearWatchProgress(filePaths));
 
 handle('get-track-preference', (_client, key: string): TrackPreference | undefined => getTrackPreference(key));
 

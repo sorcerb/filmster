@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MediaFileModel } from '../models/MediaFileModel';
-import { Play, List, Search, Pencil, Star, ExternalLink, Info } from 'lucide-react';
+import { Play, Search, Pencil, Star, ExternalLink, Info } from 'lucide-react';
 import { MovieMetadata } from '../models/MediaMetadata';
 import { getProviderFilmUrl } from '../../shared/metadataApi';
 import { FileProgress } from '../hooks/useWatchProgress';
@@ -10,32 +10,26 @@ import CustomLinkButtons, { LINK_PILL_CLASS } from './CustomLinkButtons';
 import BackdropImage from './BackdropImage';
 import CreditsList from './CreditsList';
 import FileInfoModal from './FileInfoModal';
+import EpisodePlayButton from './EpisodePlayButton';
 
 const GLASS_PILL_CLASS = 'px-3 py-1 bg-neutral-900/60 border border-white/10 text-neutral-100 backdrop-blur-md rounded-full';
 const ICON_BUTTON_CLASS = 'p-1.5 text-neutral-200 bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:text-white hover:bg-neutral-700/80 rounded-full transition-colors';
 
 interface PlayTileProps {
     title: string;
-    subtitle?: string;
-    hint?: string;
     // Watched part, 0-100
     progress: number;
     onPlay: (e: React.MouseEvent) => void;
-    large?: boolean;
 }
 
-const PlayTile = ({ title, subtitle, hint, progress, onPlay, large = false }: PlayTileProps) => (
+const PlayTile = ({ title, progress, onPlay }: PlayTileProps) => (
     <button
         onClick={onPlay}
-        title={hint}
         className="group w-full text-left bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:bg-neutral-700/80 hover:border-white/25 rounded-lg overflow-hidden transition-colors"
     >
-        <div className={`${large ? 'px-6 py-4' : 'px-4 py-3'} flex justify-between items-center gap-2`}>
-            <div className="min-w-0">
-                <h4 className={`font-medium text-white ${large ? 'text-lg' : ''}`}>{title}</h4>
-                {subtitle && <p className="text-sm text-neutral-300 truncate" title={subtitle}>{subtitle}</p>}
-            </div>
-            <Play className={`${large ? 'h-6 w-6' : 'h-5 w-5'} shrink-0 text-neutral-300 group-hover:text-white transition-colors`} />
+        <div className="px-6 py-5 flex justify-center items-center gap-3">
+            <Play className="h-7 w-7 shrink-0 text-neutral-300 group-hover:text-white transition-colors" />
+            <h4 className="text-xl font-medium text-white">{title}</h4>
         </div>
         <div className="h-1 bg-white/10">
             <div className="h-1 bg-blue-500" style={{ width: `${progress}%` }} />
@@ -47,10 +41,11 @@ interface MediaDetailsCardProps {
     mediaItem: MediaFileModel;
     getProgress: (filePath: string) => FileProgress | null;
     play: (file: MediaFileModel, useOtherPlayer?: boolean) => void;
+    clearProgress?: (filePaths: string[]) => void;
     showBackdrop?: boolean;
 }
 
-const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }: MediaDetailsCardProps) => {
+const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBackdrop = true }: MediaDetailsCardProps) => {
     const { t, language } = useI18n();
     const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
@@ -109,7 +104,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
             {showBackdrop && <BackdropImage url={metaData?.backdropUrl} fullScreen />}
             <div className="relative flex gap-6 md:gap-8">
                 <div className="flex-1 min-w-0">
-                    <div className={`flex gap-4 md:gap-8 ${mediaItem.type !== 'series' ? 'min-h-[calc(100dvh-7.5rem)]' : ''}`}>
+                    <div className="flex gap-4 md:gap-8 min-h-[calc(100dvh-7.5rem)]">
                         <div className="h-[60dvh] min-h-80 max-w-[40%] aspect-[2/3] shrink-0">
                             <div className="h-full bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg overflow-hidden shadow-2xl shadow-black/60 flex items-center justify-center">
                                 {metaData?.posterUrl ? (
@@ -141,11 +136,44 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
                         </div>
 
                         <div className="flex-1 min-w-0 max-w-4xl mx-auto flex flex-col">
-                            <div className="flex justify-between items-start">
+                            <div className="flex justify-between items-start gap-4">
                                 <h1 className="text-2xl font-bold text-white [text-shadow:0_1px_4px_rgb(0_0_0/0.8)]">
                                     {metaData?.title || mediaItem.parsedName}
                                 </h1>
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                    {mediaItem.quality && (
+                                        <span className="px-3 py-1 bg-orange-950/70 border border-orange-400/30 text-orange-200 backdrop-blur-md rounded-full text-xs">
+                                            {mediaItem.quality}
+                                        </span>
+                                    )}
+                                    {mediaItem.resolution && (
+                                        <span className="px-3 py-1 bg-green-950/70 border border-green-400/30 text-green-200 backdrop-blur-md rounded-full text-xs">
+                                            {mediaItem.resolution}
+                                        </span>
+                                    )}
+                                    <span className="px-3 py-1 bg-blue-950/70 border border-blue-400/30 text-blue-200 backdrop-blur-md rounded-full text-xs">
+                                        {mediaItem.type === 'movie' ? t('common.movie') : t('common.series')}
+                                    </span>
+                                    {providerUrl && (
+                                        <a
+                                            href={providerUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            title={[t('details.openOn', { provider: providerName }), rating?.votesCount ? t('details.votes', { count: rating.votesCount.toLocaleString(language) }) : '']
+                                                .filter(Boolean).join(' · ')}
+                                            className={LINK_PILL_CLASS}
+                                        >
+                                            {rating?.value ? (
+                                                <>
+                                                    <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                                                    <span className="font-medium text-white">{rating.value.toFixed(1)}</span>
+                                                </>
+                                            ) : null}
+                                            <span>{providerName}</span>
+                                            <ExternalLink className="h-3 w-3 text-neutral-500" />
+                                        </a>
+                                    )}
+                                    <CustomLinkButtons title={metaData?.title || mediaItem.parsedName} />
                                     <button
                                         onClick={() => setShowFileInfo(true)}
                                         className={ICON_BUTTON_CLASS}
@@ -168,43 +196,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
                                 </div>
                             </div>
 
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                {mediaItem.quality && (
-                                    <span className="px-3 py-1 bg-orange-950/70 border border-orange-400/30 text-orange-200 backdrop-blur-md rounded-full text-xs">
-                                        {mediaItem.quality}
-                                    </span>
-                                )}
-                                {mediaItem.resolution && (
-                                    <span className="px-3 py-1 bg-green-950/70 border border-green-400/30 text-green-200 backdrop-blur-md rounded-full text-xs">
-                                        {mediaItem.resolution}
-                                    </span>
-                                )}
-                                <span className="px-3 py-1 bg-blue-950/70 border border-blue-400/30 text-blue-200 backdrop-blur-md rounded-full text-xs">
-                                    {mediaItem.type === 'movie' ? t('common.movie') : t('common.series')}
-                                </span>
-                                {providerUrl && (
-                                    <a
-                                        href={providerUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        title={[t('details.openOn', { provider: providerName }), rating?.votesCount ? t('details.votes', { count: rating.votesCount.toLocaleString(language) }) : '']
-                                            .filter(Boolean).join(' · ')}
-                                        className={LINK_PILL_CLASS}
-                                    >
-                                        {rating?.value ? (
-                                            <>
-                                                <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                                                <span className="font-medium text-white">{rating.value.toFixed(1)}</span>
-                                            </>
-                                        ) : null}
-                                        <span>{providerName}</span>
-                                        <ExternalLink className="h-3 w-3 text-neutral-500" />
-                                    </a>
-                                )}
-                                <CustomLinkButtons title={metaData?.title || mediaItem.parsedName} />
-                            </div>
-
-                            <div className="mt-4 text-neutral-400 line-clamp-3 gap-2 flex flex-wrap rounded-lg">
+                            <div className="mt-4 text-neutral-400 line-clamp-3 gap-2 flex flex-wrap rounded-lg xl:hidden">
                                 {metaData?.genres.map((genre, index) => (
                                     <span key={index} className={`${GLASS_PILL_CLASS} text-xs`}>
                                         {genre}
@@ -212,32 +204,36 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
                                 ))}
                             </div>
 
-                            <div className="mt-auto pt-6">
-                                <div className="text-neutral-200 bg-neutral-900/75 backdrop-blur-md p-4 rounded-lg overflow-y-auto">
-                                    {metaData?.description ? metaData.description : (
-                                        <div className="flex items-center justify-between gap-4">
-                                            <span className="text-sm">{t('details.noDescription')}</span>
-                                            <button
-                                                onClick={() => setShowEditModal(true)}
-                                                className="flex items-center gap-2 px-3 py-1.5 bg-neutral-700 text-neutral-200 text-sm rounded hover:bg-neutral-600 transition-colors"
-                                            >
-                                                <Search className="h-4 w-4" />
-                                                {t('details.findDescription')}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="mt-4 text-neutral-100 [text-shadow:0_1px_3px_rgb(0_0_0/0.9),0_0_12px_rgb(0_0_0/0.6)]">
+                                {metaData?.description ? metaData.description : (
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-sm">{t('details.noDescription')}</span>
+                                        <button
+                                            onClick={() => setShowEditModal(true)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-neutral-700 text-neutral-200 text-sm rounded hover:bg-neutral-600 transition-colors"
+                                        >
+                                            <Search className="h-4 w-4" />
+                                            {t('details.findDescription')}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
 
-                                {mediaItem.type !== 'series' && (
-                                    <div className="mt-6 w-80 mx-auto">
+                            {/* Centred in the space between the bottom of the poster (60dvh) and the bottom of the window */}
+                            <div className="mt-auto pt-6 min-h-[calc(40dvh-7.5rem)] flex items-center justify-center">
+                                <div className="w-96 max-w-full">
+                                    {mediaItem.type !== 'series' ? (
                                         <PlayTile
                                             title={t('details.playMovie')}
                                             progress={getProgressPercent(mediaItem.fullPath)}
                                             onPlay={(e) => play(mediaItem, e.ctrlKey)}
-                                            large
                                         />
-                                    </div>
-                                )}
+                                    ) : mediaItem.episodes?.length ? (
+                                        <EpisodePlayButton episodes={mediaItem.episodes} getProgress={getProgress} getProgressPercent={getProgressPercent} play={play} clearProgress={clearProgress} />
+                                    ) : (
+                                        <p className="text-center text-neutral-400 text-sm">{t('details.noEpisodes')}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -247,54 +243,12 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, showBackdrop = true }:
                     </div>
                 </div>
 
-                {(metaData?.directors?.length || metaData?.actors?.length) ? (
+                {(metaData?.genres?.length || metaData?.directors?.length || metaData?.actors?.length) ? (
                     <div className="hidden xl:block w-72 shrink-0 h-[60dvh] min-h-80">
-                        <CreditsList directors={metaData?.directors} actors={metaData?.actors} layout="column" />
+                        <CreditsList genres={metaData?.genres} directors={metaData?.directors} actors={metaData?.actors} layout="column" />
                     </div>
                 ) : null}
             </div>
-
-            {mediaItem.type === 'series' && (
-                <div className="mt-6 max-w-7xl mx-auto">
-                    <div className="flex items-center gap-2 mb-3">
-                        <List className="h-5 w-5 text-neutral-400" />
-                        <h3 className="text-sm font-medium text-neutral-200 [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]">{t('details.episodes')}</h3>
-                    </div>
-                    {mediaItem.seasons && mediaItem.seasons.length > 0 ? (
-                        <div className="space-y-6">
-                            {mediaItem.seasons.map(season => {
-                                const seasonEpisodes = mediaItem.episodes?.filter(ep => ep.season === season) || [];
-                                return (
-                                    <div key={`season-${season}`}>
-                                        <h3 className="text-lg font-semibold text-white mb-3 [text-shadow:0_1px_4px_rgb(0_0_0/0.8)]">
-                                            {t('common.season', { season: season.toString().padStart(2, '0') })}
-                                        </h3>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                            {seasonEpisodes
-                                                .sort((a, b) => (a.episode || 0) - (b.episode || 0))
-                                                .map((episode) => (
-                                                    <PlayTile
-                                                        key={episode.id}
-                                                        title={episode.episode ? t('details.episode', { episode: episode.episode.toString().padStart(2, '0') }) : t('details.unknownEpisode')}
-                                                        subtitle={episode.episodeTitle}
-                                                        hint={t('details.playEpisode')}
-                                                        progress={getProgressPercent(episode.fullPath)}
-                                                        onPlay={(e) => {
-                                                            e.stopPropagation();
-                                                            play(episode, e.ctrlKey);
-                                                        }}
-                                                    />
-                                                ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <p className="text-neutral-400 text-sm">{t('details.noEpisodes')}</p>
-                    )}
-                </div>
-            )}
 
             <EditMetadataModal
                 isOpen={showEditModal}

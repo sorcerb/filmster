@@ -8,6 +8,9 @@ export interface FileProgress {
     positionSeconds: number;
     durationSeconds?: number;
     formattedTime: string;
+    // ISO date
+    lastWatched?: string;
+    isCompleted?: boolean;
 }
 
 const formatDuration = (seconds: number): string => {
@@ -25,24 +28,37 @@ export const useWatchProgress = (refreshInterval: number) => {
     const [mpcHistory, setMpcHistory] = useState<Record<string, MpcWatchEntry>>({});
     const [internalProgress, setInternalProgress] = useState<Record<string, WatchProgress>>({});
 
+    const load = useCallback(async () => {
+        const type = await window.electron.getPlayerType();
+        setPlayerType(type);
+        if (type === 'internal') setInternalProgress(await window.electron.getAllWatchProgress());
+        else setMpcHistory(await window.electron.getMpcHistory());
+    }, []);
+
     useEffect(() => {
-        const load = async () => {
-            const type = await window.electron.getPlayerType();
-            setPlayerType(type);
-            if (type === 'internal') setInternalProgress(await window.electron.getAllWatchProgress());
-            else setMpcHistory(await window.electron.getMpcHistory());
-        };
         load();
         const interval = setInterval(load, refreshInterval);
         return () => clearInterval(interval);
-    }, [refreshInterval]);
+    }, [load, refreshInterval]);
+
+    // The app's own progress only: MPC-HC keeps its history itself
+    const clearProgress = useCallback(async (filePaths: string[]) => {
+        await window.electron.clearWatchProgress(filePaths);
+        await load();
+    }, [load]);
 
     const getProgress = useCallback((filePath: string): FileProgress | null => {
         if (playerType === 'internal') {
             const progress = internalProgress[filePath];
             if (!progress) return null;
             const position = Math.floor(progress.lastPosition);
-            return { positionSeconds: position, durationSeconds: progress.totalDuration, formattedTime: formatDuration(position) };
+            return {
+                positionSeconds: position,
+                durationSeconds: progress.totalDuration,
+                formattedTime: formatDuration(position),
+                lastWatched: progress.lastWatched,
+                isCompleted: progress.isCompleted,
+            };
         }
 
         // MPC history paths may differ (mapped drive vs UNC), so match by file name
@@ -50,7 +66,8 @@ export const useWatchProgress = (refreshInterval: number) => {
         for (const [path, entry] of Object.entries(mpcHistory)) {
             if (getFileName(path) === fileName) {
                 const position = Math.floor(entry.filePosition / 1000);
-                return { positionSeconds: position, formattedTime: formatDuration(position) };
+                // MPC-HC resets the position when a file is played to the end
+                return { positionSeconds: position, formattedTime: formatDuration(position), lastWatched: entry.lastOpened, isCompleted: entry.filePosition === 0 };
             }
         }
         return null;
@@ -69,5 +86,5 @@ export const useWatchProgress = (refreshInterval: number) => {
         }
     }, [playerType, navigate]);
 
-    return { playerType, getProgress, play };
+    return { playerType, getProgress, play, clearProgress };
 };
