@@ -116,7 +116,13 @@ const cleanTitle = (text: string, p: CompiledPatterns): string => {
         .replace(/^[\s\-–—.,:;_]+|[\s\-–—.,:;_]+$/g, '');
 };
 
-const isSeasonFolder = (folder: string, p: CompiledPatterns) => !!first(p.seasonInFolder, folder);
+// "09.Show.s01.E09" - only when the number repeats the episode, so "2.Fast.2.Furious" keeps its title
+const stripEpisodePrefix = (fileName: string, episode: number | undefined): string => {
+    const m = fileName.match(/^(\d{1,3})[ ._]+(?=[^\s\d])/);
+    return m && episode !== undefined && parseInt(m[1], 10) === episode ? fileName.slice(m[0].length) : fileName;
+};
+
+const isSeasonFolder =(folder: string, p: CompiledPatterns) => !!first(p.seasonInFolder, folder);
 
 const seasonFromFolders = (folders: string[], p: CompiledPatterns): number | undefined => {
     for (let i = folders.length - 1; i >= 0; i--) {
@@ -186,7 +192,7 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
     }
 
     // "05 - Pilot" holds the episode title, so the show name comes from the folders.
-    let parsedName = episodeOnly && folders.length ? '' : cleanTitle(fileName, p);
+    let parsedName = episodeOnly && folders.length ? '' : cleanTitle(stripEpisodePrefix(fileName, episodeOnly ? undefined : episode), p);
     for (let i = folders.length - 1; !parsedName && i >= 0; i--) {
         parsedName = cleanTitle(folders[i], p);
     }

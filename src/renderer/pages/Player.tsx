@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Play, Pause, Rewind, FastForward, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Minimize, Captions, ChevronsRight } from 'lucide-react';
+import { ArrowLeft, X, Play, Pause, Rewind, FastForward, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Minimize, Captions, ChevronsRight } from 'lucide-react';
 import { WatchProgress } from '../models/WatchProgressModel';
 import { MediaFileModel, MediaType } from '../models/MediaFileModel';
 import { AudioTrackInfo, MediaInfo, SubtitleTrackInfo } from '../models/MediaInfo';
@@ -733,8 +733,19 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
                 onDoubleClick={toggleFullscreen}
             />
 
+            <button
+                onClick={goBack}
+                title={t('common.goBack')}
+                aria-label={t('common.goBack')}
+                className="group absolute left-0 top-0 bottom-24 z-10 w-12 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/5 transition-[color,background-color,opacity] duration-300"
+                style={{ opacity: controlsVisible ? 1 : 0, pointerEvents: controlsVisible ? 'auto' : 'none' }}
+                tabIndex={-1}
+            >
+                <ArrowLeft className="h-6 w-6 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+
             <div
-                className="absolute top-0 left-0 right-0 p-4 flex items-center gap-4 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300"
+                className="absolute top-0 left-12 right-0 p-4 flex items-center gap-4 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300"
                 style={{ opacity: controlsVisible ? 1 : 0, pointerEvents: controlsVisible ? 'auto' : 'none' }}
             >
                 <h1 className="flex-1 text-white text-lg font-medium truncate">

@@ -28,7 +28,7 @@ interface ScanCache {
 
 const SCAN_CACHE_VERSION = 1;
 // Bumped when the name parser starts reading more from file names: cached files are re-parsed, keeping when they were added
-const PARSER_VERSION = 2;
+const PARSER_VERSION = 3;
 let scanCache: ScanCache | null = null;
 let addedFiles: MediaFileModel[] = [];
 
