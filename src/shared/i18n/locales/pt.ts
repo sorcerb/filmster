@@ -216,6 +216,7 @@ const pt: Messages = {
 
     'regex.seasonEpisode': 'Padrão de temporada e episódio',
     'regex.episodeOnly': 'Padrão apenas de episódio',
+    'regex.looseEpisode': 'Padrão de número de episódio no nome',
     'regex.seasonInFolder': 'Padrão de temporada na pasta',
     'regex.year': 'Padrão de ano',
     'regex.resolution': 'Padrão de resolução',

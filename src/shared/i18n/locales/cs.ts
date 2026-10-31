@@ -216,6 +216,7 @@ const cs: Messages = {
 
     'regex.seasonEpisode': 'Vzor řady a epizody',
     'regex.episodeOnly': 'Vzor pouze epizody',
+    'regex.looseEpisode': 'Vzor čísla epizody v názvu',
     'regex.seasonInFolder': 'Vzor řady ve složce',
     'regex.year': 'Vzor roku',
     'regex.resolution': 'Vzor rozlišení',

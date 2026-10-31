@@ -216,6 +216,7 @@ const ro: Messages = {
 
     'regex.seasonEpisode': 'Șablon sezon și episod',
     'regex.episodeOnly': 'Șablon doar episod',
+    'regex.looseEpisode': 'Șablon număr episod în nume',
     'regex.seasonInFolder': 'Șablon sezon în folder',
     'regex.year': 'Șablon an',
     'regex.resolution': 'Șablon rezoluție',

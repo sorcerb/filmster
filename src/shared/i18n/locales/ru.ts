@@ -216,6 +216,7 @@ const ru: Messages = {
 
     'regex.seasonEpisode': 'Шаблон сезона и эпизода',
     'regex.episodeOnly': 'Шаблон только эпизода',
+    'regex.looseEpisode': 'Шаблон номера серии в названии',
     'regex.seasonInFolder': 'Шаблон сезона в папке',
     'regex.year': 'Шаблон года',
     'regex.resolution': 'Шаблон разрешения',

@@ -691,6 +691,7 @@ const PlayerView = ({ id, fullscreenRef, closingRef }: {
             className="relative w-full h-dvh bg-black select-none overflow-hidden"
             style={{ cursor: controlsVisible ? 'default' : 'none' }}
             onMouseMove={revealControls}
+            onContextMenu={(e) => e.preventDefault()}
             onPointerDown={(e) => {
                 tapRevealedControlsRef.current = e.pointerType === 'touch' && !controlsVisible;
                 if (e.pointerType === 'touch') revealControls();

@@ -8,6 +8,7 @@ export enum MediaType {
 export interface RegexPatterns {
     seasonEpisode: string;
     episodeOnly: string;
+    looseEpisode: string;
     seasonInFolder: string;
     year: string;
     resolution: string;

@@ -1,7 +1,7 @@
 {
   "name": "filmster",
   "productName": "filmster",
-  "version": "1.0.33",
+  "version": "1.0.34",
   "description": "Filmster - Film and TV show manager",
   "main": "./out/main/main.js",
   "scripts": {

@@ -216,6 +216,7 @@ const it: Messages = {
 
     'regex.seasonEpisode': 'Pattern stagione ed episodio',
     'regex.episodeOnly': 'Pattern solo episodio',
+    'regex.looseEpisode': 'Pattern numero episodio nel nome',
     'regex.seasonInFolder': 'Pattern stagione nella cartella',
     'regex.year': 'Pattern anno',
     'regex.resolution': 'Pattern risoluzione',

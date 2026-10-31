@@ -76,6 +76,17 @@ export const RegexSettings = ({ onSave }: RegexSettingsProps) => {
             </div>
 
             <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">{t('regex.looseEpisode')}</label>
+                <input
+                    type="text"
+                    value={patterns.looseEpisode}
+                    onChange={(e) => handleChange('looseEpisode', e.target.value)}
+                    className="w-full bg-neutral-700 border border-neutral-600 rounded px-3 py-2 text-white text-xs"
+                    placeholder={t('regex.example', { pattern: DEFAULT_REGEX_PATTERNS.looseEpisode })}
+                />
+            </div>
+
+            <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-1">{t('regex.seasonInFolder')}</label>
                 <input
                     type="text"

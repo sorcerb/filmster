@@ -216,6 +216,7 @@ const de: Messages = {
 
     'regex.seasonEpisode': 'Muster für Staffel und Folge',
     'regex.episodeOnly': 'Muster nur für Folge',
+    'regex.looseEpisode': 'Muster für Folgennummer im Namen',
     'regex.seasonInFolder': 'Muster für Staffel im Ordner',
     'regex.year': 'Jahresmuster',
     'regex.resolution': 'Auflösungsmuster',

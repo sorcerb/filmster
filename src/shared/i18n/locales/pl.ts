@@ -216,6 +216,7 @@ const pl: Messages = {
 
     'regex.seasonEpisode': 'Wzorzec sezonu i odcinka',
     'regex.episodeOnly': 'Wzorzec samego odcinka',
+    'regex.looseEpisode': 'Wzorzec numeru odcinka w nazwie',
     'regex.seasonInFolder': 'Wzorzec sezonu w folderze',
     'regex.year': 'Wzorzec roku',
     'regex.resolution': 'Wzorzec rozdzielczości',

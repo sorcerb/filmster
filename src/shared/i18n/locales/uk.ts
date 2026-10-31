@@ -216,6 +216,7 @@ const uk: Messages = {
 
     'regex.seasonEpisode': 'Шаблон сезону та епізоду',
     'regex.episodeOnly': 'Шаблон лише епізоду',
+    'regex.looseEpisode': 'Шаблон номера серії в назві',
     'regex.seasonInFolder': 'Шаблон сезону в теці',
     'regex.year': 'Шаблон року',
     'regex.resolution': 'Шаблон роздільності',

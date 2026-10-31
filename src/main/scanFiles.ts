@@ -7,7 +7,7 @@ import { getLibraryFolders } from "../renderer/stores/LibraryFoldersStore";
 import { getRegexPatterns } from "../renderer/stores/RegexPatternsStore";
 import { DEFAULT_REGEX_PATTERNS, LEGACY_REGEX_PATTERNS } from "../shared/constants/regexPatterns";
 import { createJsonWriter } from "./jsonWriter";
-import { parseMediaName } from "./mediaNameParser";
+import { looseEpisodeKey, parseMediaName } from "./mediaNameParser";
 
 const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.ts'];
 
@@ -28,7 +28,7 @@ interface ScanCache {
 
 const SCAN_CACHE_VERSION = 1;
 // Bumped when the name parser starts reading more from file names: cached files are re-parsed, keeping when they were added
-const PARSER_VERSION = 3;
+const PARSER_VERSION = 5;
 let scanCache: ScanCache | null = null;
 let addedFiles: MediaFileModel[] = [];
 
@@ -66,10 +66,10 @@ const withTrailingSep = (p: string) => p.endsWith(path.sep) ? p : p + path.sep;
 
 const isInsideFolder = (dir: string, root: string) => dir === root || dir.startsWith(withTrailingSep(root));
 
-const createMediaFile = (fullPath: string, baseFolder: string, parentFolder: string, stats: { mtime: Date; size: number }, patterns: RegexPatterns, dateAdded?: Date): MediaFileModel => {
+const createMediaFile = (fullPath: string, baseFolder: string, parentFolder: string, stats: { mtime: Date; size: number }, patterns: RegexPatterns, looseEpisodes: boolean, dateAdded?: Date): MediaFileModel => {
     const ext = path.extname(fullPath);
     const fileName = path.basename(fullPath, ext);
-    const parsed = parseMediaName(fileName, parentFolder, patterns);
+    const parsed = parseMediaName(fileName, parentFolder, patterns, looseEpisodes);
 
     return {
         id: fullPath,
@@ -105,8 +105,17 @@ const isDirectoryEntry = (entry: Dirent, fullPath: string): boolean => {
 const readDirectory = (dirPath: string, baseFolder: string, parentFolder: string, mtimeMs: number, patterns: RegexPatterns, previous: DirCacheEntry | undefined, reparse: boolean): DirCacheEntry => {
     const entry: DirCacheEntry = { mtimeMs, subDirs: [], files: [] };
     const previousFiles = new Map((previous?.files || []).map(f => [f.id, f]));
+    const items = readdirSync(dirPath, { withFileTypes: true });
 
-    for (const item of readdirSync(dirPath, { withFileTypes: true })) {
+    const looseKeys = new Map<string, number>();
+    items.forEach(item => {
+        if (!videoExtensions.includes(path.extname(item.name).toLowerCase())) return;
+        const key = looseEpisodeKey(path.parse(item.name).name, patterns);
+        if (key) looseKeys.set(key, (looseKeys.get(key) ?? 0) + 1);
+    });
+    const hasLooseSiblings = (name: string) => (looseKeys.get(looseEpisodeKey(path.parse(name).name, patterns) ?? '') ?? 0) > 1;
+
+    for (const item of items) {
         const fullPath = join(dirPath, item.name);
         try {
             if (isDirectoryEntry(item, fullPath)) {
@@ -119,10 +128,12 @@ const readDirectory = (dirPath: string, baseFolder: string, parentFolder: string
             if (!stats.isFile()) continue;
 
             const prev = previousFiles.get(fullPath);
-            if (prev && !reparse) {
+            const looseEpisodes = hasLooseSiblings(item.name);
+            // a sibling episode may have appeared since the file was parsed
+            if (prev && !reparse && !(looseEpisodes && prev.episode === undefined)) {
                 entry.files.push({ ...prev, fileSize: stats.size, modifiedDate: stats.mtime });
             } else {
-                const mediaFile = createMediaFile(fullPath, baseFolder, parentFolder, stats, patterns, prev?.dateAdded);
+                const mediaFile = createMediaFile(fullPath, baseFolder, parentFolder, stats, patterns, looseEpisodes, prev?.dateAdded);
                 entry.files.push(mediaFile);
                 if (!prev) {
                     addedFiles.push(mediaFile);

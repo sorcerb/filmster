@@ -216,6 +216,7 @@ const et: Messages = {
 
     'regex.seasonEpisode': 'Hooaja ja episoodi muster',
     'regex.episodeOnly': 'Ainult episoodi muster',
+    'regex.looseEpisode': 'Episoodi numbri muster nimes',
     'regex.seasonInFolder': 'Kaustas oleva hooaja muster',
     'regex.year': 'Aasta muster',
     'regex.resolution': 'Resolutsiooni muster',

@@ -216,6 +216,7 @@ const tr: Messages = {
 
     'regex.seasonEpisode': 'Sezon ve Bölüm Deseni',
     'regex.episodeOnly': 'Yalnızca Bölüm Deseni',
+    'regex.looseEpisode': 'Ad İçinde Bölüm Numarası Deseni',
     'regex.seasonInFolder': 'Klasördeki Sezon Deseni',
     'regex.year': 'Yıl Deseni',
     'regex.resolution': 'Çözünürlük Deseni',

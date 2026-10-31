@@ -216,6 +216,7 @@ const fr: Messages = {
 
     'regex.seasonEpisode': 'Motif saison et épisode',
     'regex.episodeOnly': 'Motif épisode seul',
+    'regex.looseEpisode': 'Motif du numéro d’épisode dans le nom',
     'regex.seasonInFolder': 'Motif saison dans le dossier',
     'regex.year': 'Motif d\'année',
     'regex.resolution': 'Motif de résolution',

@@ -215,6 +215,7 @@ const en = {
 
     'regex.seasonEpisode': 'Season & Episode Pattern',
     'regex.episodeOnly': 'Episode Only Pattern',
+    'regex.looseEpisode': 'Episode Number in Name Pattern',
     'regex.seasonInFolder': 'Season in Folder Pattern',
     'regex.year': 'Year Pattern',
     'regex.resolution': 'Resolution Pattern',

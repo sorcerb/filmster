@@ -216,6 +216,7 @@ const lt: Messages = {
 
     'regex.seasonEpisode': 'Sezono ir epizodo šablonas',
     'regex.episodeOnly': 'Tik epizodo šablonas',
+    'regex.looseEpisode': 'Epizodo numerio pavadinime šablonas',
     'regex.seasonInFolder': 'Sezono aplanke šablonas',
     'regex.year': 'Metų šablonas',
     'regex.resolution': 'Raiškos šablonas',

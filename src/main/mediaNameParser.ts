@@ -14,6 +14,7 @@ export interface ParsedMediaName {
 interface CompiledPatterns {
     seasonEpisode: RegExp;
     episodeOnly: RegExp;
+    looseEpisode: RegExp;
     seasonInFolder: RegExp;
     year: RegExp;
     resolution: RegExp;
@@ -45,6 +46,7 @@ const getCompiled = (patterns: RegexPatterns): CompiledPatterns => {
     compiled = {
         seasonEpisode: compile(patterns.seasonEpisode),
         episodeOnly: compile(patterns.episodeOnly),
+        looseEpisode: compile(patterns.looseEpisode),
         seasonInFolder: compile(patterns.seasonInFolder),
         year: compile(patterns.year),
         resolution: compile(patterns.resolution),
@@ -116,13 +118,36 @@ const cleanTitle = (text: string, p: CompiledPatterns): string => {
         .replace(/^[\s\-–—.,:;_]+|[\s\-–—.,:;_]+$/g, '');
 };
 
-// "09.Show.s01.E09" - only when the number repeats the episode, so "2.Fast.2.Furious" keeps its title
-const stripEpisodePrefix = (fileName: string, episode: number | undefined): string => {
+// "09.Show.s01.E09", "43.Show.s03.E07" - only before a season/episode marker, so "2.Fast.2.Furious" keeps its title;
+// "24.S01E01" keeps it too, since nothing is left before the marker
+const stripEpisodePrefix = (fileName: string, p: CompiledPatterns): string => {
     const m = fileName.match(/^(\d{1,3})[ ._]+(?=[^\s\d])/);
-    return m && episode !== undefined && parseInt(m[1], 10) === episode ? fileName.slice(m[0].length) : fileName;
+    if (!m) return fileName;
+    const stripped = fileName.slice(m[0].length);
+    return cleanTitle(stripped, p) ? stripped : fileName;
 };
 
-const isSeasonFolder =(folder: string, p: CompiledPatterns) => !!first(p.seasonInFolder, folder);
+// "01. Show.2019", "Show.e01" - an episode only when the folder holds other files with the same name (see looseEpisodeKey)
+const findLooseEpisode = (fileName: string, p: CompiledPatterns): { episode: number; title: string } | undefined => {
+    const lead = first(p.episodeOnly, fileName);
+    if (lead) {
+        return { episode: parseInt(value(lead), 10), title: cleanTitle(fileName.slice(lead.index + lead[0].length), p) };
+    }
+    const mid = first(p.looseEpisode, fileName);
+    if (mid?.index) {
+        return { episode: parseInt(value(mid), 10), title: cleanTitle(fileName.slice(0, mid.index), p) };
+    }
+    return undefined;
+};
+
+export const looseEpisodeKey = (fileName: string, patterns: RegexPatterns): string | undefined => {
+    const p = getCompiled(patterns);
+    if (first(p.seasonEpisode, fileName)?.[2]) return undefined;
+    const loose = findLooseEpisode(fileName, p);
+    return loose?.title ? `${loose.title.toLowerCase()}|${findYear(fileName, p)?.year ?? ''}` : undefined;
+};
+
+const isSeasonFolder = (folder: string, p: CompiledPatterns) => !!first(p.seasonInFolder, folder);
 
 const seasonFromFolders = (folders: string[], p: CompiledPatterns): number | undefined => {
     for (let i = folders.length - 1; i >= 0; i--) {
@@ -155,7 +180,7 @@ const parseQuality = (fileName: string, folders: string[], p: CompiledPatterns):
     return tag && canonical(tag, p.quality);
 };
 
-export const parseMediaName = (fileName: string, parentFolder: string, patterns: RegexPatterns): ParsedMediaName => {
+export const parseMediaName = (fileName: string, parentFolder: string, patterns: RegexPatterns, looseEpisodes = false): ParsedMediaName => {
     const p = getCompiled(patterns);
     const folders = parentFolder ? parentFolder.split('/').filter(Boolean) : [];
     const lastFolder = folders[folders.length - 1] ?? '';
@@ -164,6 +189,7 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
     let episode: number | undefined;
     let episodeOnly = false;
     let episodeEnd: number | undefined;
+    let loose: ReturnType<typeof findLooseEpisode>;
     const se = first(p.seasonEpisode, fileName);
     if (se && se[1] && se[2]) {
         season = toNumber(se, 1);
@@ -179,6 +205,12 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
             season = seasonFromFolders(folders, p) ?? 1;
             episodeOnly = true;
             episodeEnd = ep.index + ep[0].length;
+        } else if (looseEpisodes) {
+            loose = findLooseEpisode(fileName, p);
+            if (loose) {
+                episode = loose.episode;
+                season = seasonFromFolders(folders, p) ?? 1;
+            }
         }
     }
 
@@ -192,7 +224,7 @@ export const parseMediaName = (fileName: string, parentFolder: string, patterns:
     }
 
     // "05 - Pilot" holds the episode title, so the show name comes from the folders.
-    let parsedName = episodeOnly && folders.length ? '' : cleanTitle(stripEpisodePrefix(fileName, episodeOnly ? undefined : episode), p);
+    let parsedName = loose ? loose.title : episodeOnly && folders.length ? '' : cleanTitle(se && !episodeOnly && episode !== undefined ? stripEpisodePrefix(fileName, p) : fileName, p);
     for (let i = folders.length - 1; !parsedName && i >= 0; i--) {
         parsedName = cleanTitle(folders[i], p);
     }

@@ -5,6 +5,8 @@ import { RegexPatterns } from '../../renderer/models/MediaFileModel';
 export const DEFAULT_REGEX_PATTERNS: RegexPatterns = {
     seasonEpisode: '(?<![a-z\\d])S(\\d{1,2})[ ._-]?E(\\d{1,3})(?!\\d)',
     episodeOnly: '^(?:ep?|episode)?[ ._-]?(\\d{1,3})(?=[ ._-]|$)',
+    // "Show.e01.XviD", "Show (06 сер.)" - trusted only when the folder holds other episodes with the same name
+    looseEpisode: '(?<![a-zа-яё\\d])(?:e(\\d{1,3})|(\\d{1,3}) ?сер(?:ия|\\.)?|серия ?(\\d{1,3}))(?![a-zа-яё\\d])',
     seasonInFolder: '(?<![a-zа-яё\\d])(?:S|Season[ ._]?|Сезон[ ._]?)(\\d{1,2})(?!\\d)|(?<![a-zа-яё\\d])(\\d{1,2})[ ._]?(?:Season|Сезон)',
     year: '(?<![a-z\\d])((?:19|20)\\d{2})(?:-(?:19|20)\\d{2})?(?![a-z\\d])',
     resolution: '(?<!\\d)(\\d{3,4}[pi]|[48]K)(?![a-z\\d])',

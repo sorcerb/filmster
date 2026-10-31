@@ -216,6 +216,7 @@ const lv: Messages = {
 
     'regex.seasonEpisode': 'Sezonas un sērijas šablons',
     'regex.episodeOnly': 'Tikai sērijas šablons',
+    'regex.looseEpisode': 'Sērijas numura nosaukumā šablons',
     'regex.seasonInFolder': 'Sezonas šablons mapē',
     'regex.year': 'Gada šablons',
     'regex.resolution': 'Izšķirtspējas šablons',

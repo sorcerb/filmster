@@ -43,6 +43,8 @@ const createWindow = () => {
     height: 600,
     minWidth: 1000,
     minHeight: 600,
+    show: false,
+    backgroundColor: '#171717',
     autoHideMenuBar: true,
     icon: app.isPackaged
       ? path.join(process.resourcesPath, 'assets/icon.ico')
@@ -53,7 +55,11 @@ const createWindow = () => {
     }
   })
 
-  mainWindow.maximize()
+  // Shown only after the first paint: otherwise Windows flashes a white, half-resized window while maximizing
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
 
   mainWindow.setTitle(`Filmster ${appVersion}`);
   // index.html has no <title>, so on load or reload Electron would replace the window title

@@ -216,6 +216,7 @@ const nl: Messages = {
 
     'regex.seasonEpisode': 'Patroon voor seizoen en aflevering',
     'regex.episodeOnly': 'Patroon alleen aflevering',
+    'regex.looseEpisode': 'Patroon afleveringsnummer in naam',
     'regex.seasonInFolder': 'Patroon voor seizoen in map',
     'regex.year': 'Jaarpatroon',
     'regex.resolution': 'Resolutiepatroon',
