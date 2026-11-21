@@ -148,8 +148,8 @@ const EpisodePlayButton = ({ episodes, getProgress, getProgressPercent, play, cl
                 </div>
             )}
 
-            <div className="bg-neutral-900/60 border border-white/10 backdrop-blur-md rounded-lg overflow-hidden">
-                <div className="flex">
+            <div className="h-24 flex flex-col bg-neutral-900/60 border border-white/10 backdrop-blur-md rounded-lg overflow-hidden">
+                <div className="flex flex-1 min-h-0">
                     {sorted.length > 1 && (
                         <button
                             onClick={() => setIsOpen(open => !open)}
@@ -162,7 +162,7 @@ const EpisodePlayButton = ({ episodes, getProgress, getProgressPercent, play, cl
                     <button
                         onClick={(e) => play(selected, e.ctrlKey)}
                         title={t('details.playEpisode')}
-                        className="group flex-1 min-w-0 px-6 py-3 flex justify-center items-center gap-3 hover:bg-neutral-700/80 transition-colors"
+                        className="group flex-1 min-w-0 px-6 flex justify-center items-center gap-3 hover:bg-neutral-700/80 transition-colors"
                     >
                         <Play className="h-7 w-7 shrink-0 text-neutral-300 group-hover:text-white transition-colors" />
                         <div className="min-w-0 text-center">

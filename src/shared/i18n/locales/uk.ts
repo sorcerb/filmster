@@ -93,6 +93,8 @@ const uk: Messages = {
     'details.unknownEpisode': 'Невідомий епізод',
     'details.noEpisodes': 'Епізодів не знайдено',
     'details.playMovie': 'Дивитися фільм',
+    'details.previousInGroup': 'Попередній',
+    'details.nextInGroup': 'Наступний',
     'details.openOn': 'Відкрити на сайті {provider}',
     'details.votes': 'Оцінок: {count}',
 

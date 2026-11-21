@@ -93,6 +93,8 @@ const pt: Messages = {
     'details.unknownEpisode': 'Episódio desconhecido',
     'details.noEpisodes': 'Nenhum episódio encontrado',
     'details.playMovie': 'Reproduzir filme',
+    'details.previousInGroup': 'Anterior',
+    'details.nextInGroup': 'Seguinte',
     'details.openOn': 'Abrir no {provider}',
     'details.votes': 'Votos: {count}',
 

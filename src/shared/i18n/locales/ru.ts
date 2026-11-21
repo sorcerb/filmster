@@ -93,6 +93,8 @@ const ru: Messages = {
     'details.unknownEpisode': 'Неизвестный эпизод',
     'details.noEpisodes': 'Эпизоды не найдены',
     'details.playMovie': 'Смотреть фильм',
+    'details.previousInGroup': 'Предыдущий',
+    'details.nextInGroup': 'Следующий',
     'details.openOn': 'Открыть на сайте {provider}',
     'details.votes': 'Оценок: {count}',
 

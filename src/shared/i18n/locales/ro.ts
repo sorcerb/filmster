@@ -93,6 +93,8 @@ const ro: Messages = {
     'details.unknownEpisode': 'Episod necunoscut',
     'details.noEpisodes': 'Nu s-au găsit episoade',
     'details.playMovie': 'Redă filmul',
+    'details.previousInGroup': 'Anterior',
+    'details.nextInGroup': 'Următor',
     'details.openOn': 'Deschide pe {provider}',
     'details.votes': 'Voturi: {count}',
 

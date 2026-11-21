@@ -93,6 +93,8 @@ const tr: Messages = {
     'details.unknownEpisode': 'Bilinmeyen Bölüm',
     'details.noEpisodes': 'Bölüm bulunamadı',
     'details.playMovie': 'Filmi Oynat',
+    'details.previousInGroup': 'Önceki',
+    'details.nextInGroup': 'Sonraki',
     'details.openOn': '{provider} sitesinde aç',
     'details.votes': 'Oy: {count}',
 

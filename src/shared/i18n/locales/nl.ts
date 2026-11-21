@@ -93,6 +93,8 @@ const nl: Messages = {
     'details.unknownEpisode': 'Onbekende aflevering',
     'details.noEpisodes': 'Geen afleveringen gevonden',
     'details.playMovie': 'Film afspelen',
+    'details.previousInGroup': 'Vorige',
+    'details.nextInGroup': 'Volgende',
     'details.openOn': 'Openen op {provider}',
     'details.votes': 'Stemmen: {count}',
 

@@ -92,6 +92,8 @@ const en = {
     'details.unknownEpisode': 'Unknown Episode',
     'details.noEpisodes': 'No episodes found',
     'details.playMovie': 'Play Movie',
+    'details.previousInGroup': 'Previous',
+    'details.nextInGroup': 'Next',
     'details.openOn': 'Open on {provider}',
     'details.votes': '{count} votes',
 

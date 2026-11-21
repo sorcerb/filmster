@@ -93,6 +93,8 @@ const et: Messages = {
     'details.unknownEpisode': 'Tundmatu episood',
     'details.noEpisodes': 'Episoode ei leitud',
     'details.playMovie': 'Esita film',
+    'details.previousInGroup': 'Eelmine',
+    'details.nextInGroup': 'Järgmine',
     'details.openOn': 'Ava {provider} lehel',
     'details.votes': 'Hääli: {count}',
 

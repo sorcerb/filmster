@@ -25,9 +25,9 @@ interface PlayTileProps {
 const PlayTile = ({ title, progress, onPlay }: PlayTileProps) => (
     <button
         onClick={onPlay}
-        className="group w-full text-left bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:bg-neutral-700/80 hover:border-white/25 rounded-lg overflow-hidden transition-colors"
+        className="group w-full h-24 flex flex-col text-left bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:bg-neutral-700/80 hover:border-white/25 rounded-lg overflow-hidden transition-colors"
     >
-        <div className="px-6 py-5 flex justify-center items-center gap-3">
+        <div className="flex-1 px-6 flex justify-center items-center gap-3">
             <Play className="h-7 w-7 shrink-0 text-neutral-300 group-hover:text-white transition-colors" />
             <h4 className="text-xl font-medium text-white">{title}</h4>
         </div>
@@ -43,9 +43,10 @@ interface MediaDetailsCardProps {
     play: (file: MediaFileModel, useOtherPlayer?: boolean) => void;
     clearProgress?: (filePaths: string[]) => void;
     showBackdrop?: boolean;
+    switcher?: React.ReactNode;
 }
 
-const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBackdrop = true }: MediaDetailsCardProps) => {
+const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBackdrop = true, switcher }: MediaDetailsCardProps) => {
     const { t, language } = useI18n();
     const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
@@ -105,34 +106,41 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
             <div className="relative flex gap-6 md:gap-8">
                 <div className="flex-1 min-w-0">
                     <div className="flex gap-4 md:gap-8 min-h-[calc(100dvh-7.5rem)]">
-                        <div className="h-[70dvh] min-h-80 max-w-[40%] aspect-[2/3] shrink-0">
-                            <div className="h-full bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg overflow-hidden shadow-2xl shadow-black/60 flex items-center justify-center">
-                                {metaData?.posterUrl ? (
-                                    <img
-                                        src={metaData.posterUrl}
-                                        alt={mediaItem.parsedName}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            console.warn('Failed to load poster:', target.src);
-                                            target.style.display = 'none';
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="flex flex-col items-center gap-3 px-2">
-                                        <span className="text-5xl text-neutral-400">
-                                            {mediaItem.type === 'movie' ? '🎬' : '📺'}
-                                        </span>
-                                        <button
-                                            onClick={() => setShowEditModal(true)}
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                                        >
-                                            <Search className="h-4 w-4" />
-                                            {t('details.findPoster')}
-                                        </button>
-                                    </div>
-                                )}
+                        <div className="max-w-[40%] shrink-0 flex flex-col">
+                            <div className="h-[70dvh] min-h-80 max-w-full aspect-[2/3]">
+                                <div className="h-full bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg overflow-hidden shadow-2xl shadow-black/60 flex items-center justify-center">
+                                    {metaData?.posterUrl ? (
+                                        <img
+                                            src={metaData.posterUrl}
+                                            alt={mediaItem.parsedName}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                console.warn('Failed to load poster:', target.src);
+                                                target.style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-3 px-2">
+                                            <span className="text-5xl text-neutral-400">
+                                                {mediaItem.type === 'movie' ? '🎬' : '📺'}
+                                            </span>
+                                            <button
+                                                onClick={() => setShowEditModal(true)}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                                            >
+                                                <Search className="h-4 w-4" />
+                                                {t('details.findPoster')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+                            {switcher && (
+                                <div className="flex-1 pt-6 min-h-[calc(30dvh-7.5rem)] flex items-center justify-center">
+                                    {switcher}
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex-1 min-w-0 max-w-4xl mx-auto flex flex-col">

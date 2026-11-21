@@ -93,6 +93,8 @@ const lv: Messages = {
     'details.unknownEpisode': 'Nezināma sērija',
     'details.noEpisodes': 'Sēriju nav',
     'details.playMovie': 'Atskaņot filmu',
+    'details.previousInGroup': 'Iepriekšējais',
+    'details.nextInGroup': 'Nākamais',
     'details.openOn': 'Atvērt {provider} vietnē',
     'details.votes': 'Balsis: {count}',
 

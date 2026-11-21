@@ -93,6 +93,8 @@ const de: Messages = {
     'details.unknownEpisode': 'Unbekannte Folge',
     'details.noEpisodes': 'Keine Folgen gefunden',
     'details.playMovie': 'Film abspielen',
+    'details.previousInGroup': 'Zurück',
+    'details.nextInGroup': 'Weiter',
     'details.openOn': 'Auf {provider} öffnen',
     'details.votes': 'Stimmen: {count}',
 

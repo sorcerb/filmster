@@ -93,6 +93,8 @@ const cs: Messages = {
     'details.unknownEpisode': 'Neznámá epizoda',
     'details.noEpisodes': 'Nebyly nalezeny žádné epizody',
     'details.playMovie': 'Přehrát film',
+    'details.previousInGroup': 'Předchozí',
+    'details.nextInGroup': 'Další',
     'details.openOn': 'Otevřít na {provider}',
     'details.votes': 'Hlasů: {count}',
 

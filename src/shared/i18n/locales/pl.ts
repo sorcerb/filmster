@@ -93,6 +93,8 @@ const pl: Messages = {
     'details.unknownEpisode': 'Nieznany odcinek',
     'details.noEpisodes': 'Nie znaleziono odcinków',
     'details.playMovie': 'Odtwórz film',
+    'details.previousInGroup': 'Poprzedni',
+    'details.nextInGroup': 'Następny',
     'details.openOn': 'Otwórz w serwisie {provider}',
     'details.votes': 'Głosy: {count}',
 

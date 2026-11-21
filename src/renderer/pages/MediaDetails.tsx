@@ -4,6 +4,7 @@ import { MediaFileModel, MediaType } from '../models/MediaFileModel';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import MediaDetailsCard from '../components/MediaDetailsCard';
 import BackEdgeButton from '../components/BackEdgeButton';
+import GroupSwitcher from '../components/GroupSwitcher';
 import { useI18n } from '../i18n/I18nProvider';
 import { compareGroupMembers } from '../utils/mediaGroups';
 
@@ -36,6 +37,7 @@ const MediaDetails = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [mediaItems, setMediaItems] = useState<MediaFileModel[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const { playerType, getProgress, play, clearProgress } = useWatchProgress(10000);
 
@@ -49,7 +51,9 @@ const MediaDetails = () => {
                 const files = (await window.electron.getMediaFiles())
                     .filter(file => file.groupId === item.groupId)
                     .sort(compareGroupMembers);
-                setMediaItems(splitGroup(files));
+                const items = splitGroup(files);
+                setMediaItems(items);
+                setCurrentIndex(Math.max(0, items.findIndex(member => member.id === id || member.episodes?.some(ep => ep.id === id))));
             } else if (item.type === MediaType.Series) {
                 const episodes = (await window.electron.getMediaFiles()).filter(file =>
                     file.type === MediaType.Series &&
@@ -57,8 +61,10 @@ const MediaDetails = () => {
                     file.parsedName === item.parsedName
                 );
                 setMediaItems([withEpisodes(item, episodes)]);
+                setCurrentIndex(0);
             } else {
                 setMediaItems([item]);
+                setCurrentIndex(0);
             }
         } catch (error) {
             console.error('Error loading media item:', error);
@@ -70,6 +76,20 @@ const MediaDetails = () => {
     useEffect(() => {
         loadMediaItem();
     }, [id]);
+
+    const selectItem = (index: number) => setCurrentIndex(Math.max(0, Math.min(mediaItems.length - 1, index)));
+
+    useEffect(() => {
+        if (mediaItems.length < 2) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
+            if ((e.target as Element).closest?.('input, textarea, select, [contenteditable]')) return;
+            if (e.key === 'ArrowLeft') selectItem(currentIndex - 1);
+            if (e.key === 'ArrowRight') selectItem(currentIndex + 1);
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [mediaItems.length, currentIndex]);
 
     if (isLoading) {
         return (
@@ -94,15 +114,20 @@ const MediaDetails = () => {
         );
     }
 
+    const currentItem = mediaItems[Math.min(currentIndex, mediaItems.length - 1)];
+
     return (
         <div className="pl-14 pr-4 md:px-10 xl:px-16 py-2 md:py-4">
             <BackEdgeButton label={t('details.backToLibrary')} />
 
-            <div className="flex flex-col gap-6">
-                {mediaItems.map((item, index) => (
-                    <MediaDetailsCard key={item.id} mediaItem={item} getProgress={getProgress} play={play} clearProgress={playerType === 'internal' ? clearProgress : undefined} showBackdrop={index === 0} />
-                ))}
-            </div>
+            <MediaDetailsCard
+                key={currentItem.id}
+                mediaItem={currentItem}
+                getProgress={getProgress}
+                play={play}
+                clearProgress={playerType === 'internal' ? clearProgress : undefined}
+                switcher={mediaItems.length > 1 ? <GroupSwitcher items={mediaItems} index={currentIndex} onSelect={selectItem} /> : undefined}
+            />
         </div>
     );
 };

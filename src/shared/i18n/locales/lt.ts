@@ -93,6 +93,8 @@ const lt: Messages = {
     'details.unknownEpisode': 'Nežinomas epizodas',
     'details.noEpisodes': 'Epizodų nerasta',
     'details.playMovie': 'Leisti filmą',
+    'details.previousInGroup': 'Ankstesnis',
+    'details.nextInGroup': 'Kitas',
     'details.openOn': 'Atidaryti {provider} svetainėje',
     'details.votes': 'Balsų: {count}',
 

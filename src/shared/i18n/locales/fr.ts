@@ -93,6 +93,8 @@ const fr: Messages = {
     'details.unknownEpisode': 'Épisode inconnu',
     'details.noEpisodes': 'Aucun épisode trouvé',
     'details.playMovie': 'Lire le film',
+    'details.previousInGroup': 'Précédent',
+    'details.nextInGroup': 'Suivant',
     'details.openOn': 'Ouvrir sur {provider}',
     'details.votes': 'Votes : {count}',
 
