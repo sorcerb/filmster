@@ -4,7 +4,6 @@ import { MediaFileModel, MediaType } from '../models/MediaFileModel';
 import { useWatchProgress } from '../hooks/useWatchProgress';
 import MediaDetailsCard from '../components/MediaDetailsCard';
 import BackEdgeButton from '../components/BackEdgeButton';
-import GroupSwitcher from '../components/GroupSwitcher';
 import { useI18n } from '../i18n/I18nProvider';
 import { compareGroupMembers } from '../utils/mediaGroups';
 
@@ -77,7 +76,7 @@ const MediaDetails = () => {
         loadMediaItem();
     }, [id]);
 
-    const selectItem = (index: number) => setCurrentIndex(Math.max(0, Math.min(mediaItems.length - 1, index)));
+    const selectItem = (index: number) => setCurrentIndex((index + mediaItems.length) % mediaItems.length);
 
     useEffect(() => {
         if (mediaItems.length < 2) return;
@@ -126,7 +125,7 @@ const MediaDetails = () => {
                 getProgress={getProgress}
                 play={play}
                 clearProgress={playerType === 'internal' ? clearProgress : undefined}
-                switcher={mediaItems.length > 1 ? <GroupSwitcher items={mediaItems} index={currentIndex} onSelect={selectItem} /> : undefined}
+                group={mediaItems.length > 1 ? { items: mediaItems, index: currentIndex, onSelect: selectItem } : undefined}
             />
         </div>
     );

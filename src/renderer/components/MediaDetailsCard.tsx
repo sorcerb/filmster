@@ -11,6 +11,7 @@ import BackdropImage from './BackdropImage';
 import CreditsList from './CreditsList';
 import FileInfoModal from './FileInfoModal';
 import EpisodePlayButton from './EpisodePlayButton';
+import GroupSwitcher, { GroupSwitcherProps } from './GroupSwitcher';
 
 const GLASS_PILL_CLASS = 'px-3 py-1 bg-neutral-900/60 border border-white/10 text-neutral-100 backdrop-blur-md rounded-full';
 const ICON_BUTTON_CLASS = 'p-1.5 text-neutral-200 bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:text-white hover:bg-neutral-700/80 rounded-full transition-colors';
@@ -43,10 +44,10 @@ interface MediaDetailsCardProps {
     play: (file: MediaFileModel, useOtherPlayer?: boolean) => void;
     clearProgress?: (filePaths: string[]) => void;
     showBackdrop?: boolean;
-    switcher?: React.ReactNode;
+    group?: GroupSwitcherProps;
 }
 
-const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBackdrop = true, switcher }: MediaDetailsCardProps) => {
+const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBackdrop = true, group }: MediaDetailsCardProps) => {
     const { t, language } = useI18n();
     const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
@@ -100,6 +101,18 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
     const providerName = t(metaData?.externalIds?.kinopoisk ? 'api.providerKinopoisk' : 'api.providerTmdb');
     const rating = metaData?.ratings?.[0];
 
+    const playButton = mediaItem.type !== 'series' ? (
+        <PlayTile
+            title={t('details.playMovie')}
+            progress={getProgressPercent(mediaItem.fullPath)}
+            onPlay={(e) => play(mediaItem, e.ctrlKey)}
+        />
+    ) : mediaItem.episodes?.length ? (
+        <EpisodePlayButton episodes={mediaItem.episodes} getProgress={getProgress} getProgressPercent={getProgressPercent} play={play} clearProgress={clearProgress} />
+    ) : (
+        <p className="text-center text-neutral-400 text-sm">{t('details.noEpisodes')}</p>
+    );
+
     return (
         <div className="relative pb-4 md:pb-6">
             {showBackdrop && <BackdropImage url={metaData?.backdropUrl} fullScreen />}
@@ -136,11 +149,6 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
                                     )}
                                 </div>
                             </div>
-                            {switcher && (
-                                <div className="flex-1 pt-6 min-h-[calc(30dvh-7.5rem)] flex items-center justify-center">
-                                    {switcher}
-                                </div>
-                            )}
                         </div>
 
                         <div className="flex-1 min-w-0 max-w-4xl mx-auto flex flex-col">
@@ -229,19 +237,7 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
 
                             {/* Centred in the space between the bottom of the poster (70dvh) and the bottom of the window */}
                             <div className="mt-auto pt-6 min-h-[calc(30dvh-7.5rem)] flex items-center justify-center">
-                                <div className="w-96 max-w-full">
-                                    {mediaItem.type !== 'series' ? (
-                                        <PlayTile
-                                            title={t('details.playMovie')}
-                                            progress={getProgressPercent(mediaItem.fullPath)}
-                                            onPlay={(e) => play(mediaItem, e.ctrlKey)}
-                                        />
-                                    ) : mediaItem.episodes?.length ? (
-                                        <EpisodePlayButton episodes={mediaItem.episodes} getProgress={getProgress} getProgressPercent={getProgressPercent} play={play} clearProgress={clearProgress} />
-                                    ) : (
-                                        <p className="text-center text-neutral-400 text-sm">{t('details.noEpisodes')}</p>
-                                    )}
-                                </div>
+                                {group ? <GroupSwitcher {...group}>{playButton}</GroupSwitcher> : <div className="w-96 max-w-full">{playButton}</div>}
                             </div>
                         </div>
                     </div>
