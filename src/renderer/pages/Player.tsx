@@ -99,7 +99,8 @@ const getPlaylist = (item: MediaFileModel, files: MediaFileModel[]): MediaFileMo
     if (item.groupId) return files.filter(f => f.groupId === item.groupId).sort(compareGroupMembers);
     const playlist = item.type === MediaType.Series
         ? files.filter(f => f.type === MediaType.Series && !f.groupId && f.parsedName === item.parsedName)
-        : files.filter(f => !f.groupId && getFolder(f.fullPath) === getFolder(item.fullPath));
+        // Parts of the same movie only: a folder like "Videos" holds many unrelated movies
+        : files.filter(f => !f.groupId && f.type === MediaType.Movie && f.parsedName === item.parsedName && getFolder(f.fullPath) === getFolder(item.fullPath));
     return playlist.sort((a, b) =>
         (a.season ?? 0) - (b.season ?? 0)
         || (a.episode ?? 0) - (b.episode ?? 0)
