@@ -12,6 +12,7 @@ import CreditsList from './CreditsList';
 import FileInfoModal from './FileInfoModal';
 import EpisodePlayButton from './EpisodePlayButton';
 import GroupSwitcher, { GroupSwitcherProps } from './GroupSwitcher';
+import { getCachedMetadata, loadMetadataCached } from '../utils/metadataCache';
 
 const GLASS_PILL_CLASS = 'px-3 py-1 bg-neutral-900/60 border border-white/10 text-neutral-100 backdrop-blur-md rounded-full';
 const ICON_BUTTON_CLASS = 'p-1.5 text-neutral-200 bg-neutral-900/60 border border-white/10 backdrop-blur-md hover:text-white hover:bg-neutral-700/80 rounded-full transition-colors';
@@ -49,13 +50,12 @@ interface MediaDetailsCardProps {
 
 const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBackdrop = true, group }: MediaDetailsCardProps) => {
     const { t, language } = useI18n();
-    const [metaData, setMetaData] = useState<MovieMetadata | null>(null);
+    const file = mediaItem.episodes?.[0] ?? mediaItem;
+    const [metaData, setMetaData] = useState<MovieMetadata | null>(() => getCachedMetadata(file.metadataId));
     const [fileDurations, setFileDurations] = useState<Record<string, number>>({});
 
     const [showFileInfo, setShowFileInfo] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-
-    const file = mediaItem.episodes?.[0] ?? mediaItem;
 
     // MPC history has no reliable duration, so it's probed for files that have progress
     useEffect(() => {
@@ -79,13 +79,13 @@ const MediaDetailsCard = ({ mediaItem, getProgress, play, clearProgress, showBac
     const loadMetadata = async () => {
         if (!file.metadataId) return;
         try {
-            const metadata = await window.electron.loadMetadata(file.metadataId);
+            const metadata = await loadMetadataCached(file.metadataId);
             if (metadata) {
                 setMetaData(metadata);
                 const isMissingDetails = (!metadata.backdropUrl && !metadata.noBackdrop) || !metadata.actors;
                 if (isMissingDetails && (metadata.externalIds?.tmdb || metadata.externalIds?.kinopoisk)) {
                     const found = await window.electron.loadMissingDetails(file.metadataId);
-                    if (found) setMetaData(await window.electron.loadMetadata(file.metadataId));
+                    if (found) setMetaData(await loadMetadataCached(file.metadataId));
                 }
             }
         } catch (error) {

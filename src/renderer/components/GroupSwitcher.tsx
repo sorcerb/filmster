@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MediaFileModel } from '../models/MediaFileModel';
 import { useI18n } from '../i18n/I18nProvider';
 import { getMediaTitle } from '../utils/mediaGroups';
+import { getCachedMetadata, loadMetadataCached } from '../utils/metadataCache';
 
 const VISIBLE_COUNT = 5;
 const ARROW_CLASS = 'h-24 w-16 shrink-0 flex items-center justify-center bg-neutral-900/60 border border-white/10 backdrop-blur-md rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-700/80 hover:border-white/25 transition-colors';
@@ -17,21 +18,22 @@ const getMetadataId = (item: MediaFileModel) => (item.episodes?.[0] ?? item).met
 
 const GroupSwitcher = ({ items, index, onSelect, children }: GroupSwitcherProps & { children: ReactNode }) => {
     const { t } = useI18n();
-    const [previews, setPreviews] = useState<Record<string, { title?: string; posterUrl?: string }>>({});
+    const [, setLoadedCount] = useState(0);
 
     const count = Math.min(VISIBLE_COUNT, items.length);
     const start = Math.max(0, Math.min(index - Math.floor(count / 2), items.length - count));
     const visible = items.slice(start, start + count);
 
+    // The wrap-around neighbours are loaded too, so the card of the next member renders with its metadata at once
     useEffect(() => {
         let isCancelled = false;
-        visible.forEach(async (item) => {
+        const neighbours = [items[(index - 1 + items.length) % items.length], items[(index + 1) % items.length]];
+        new Set([...visible, ...neighbours]).forEach(async (item) => {
             const metadataId = getMetadataId(item);
-            if (!metadataId || previews[metadataId]) return;
+            if (!metadataId || getCachedMetadata(metadataId)) return;
             try {
-                const metadata = await window.electron.loadMetadata(metadataId);
-                if (isCancelled) return;
-                setPreviews(prev => ({ ...prev, [metadataId]: { title: metadata?.title ?? undefined, posterUrl: metadata?.posterUrlPreview ?? undefined } }));
+                await loadMetadataCached(metadataId);
+                if (!isCancelled) setLoadedCount(n => n + 1);
             } catch (error) {
                 console.error('Error loading poster:', error);
             }
@@ -39,7 +41,7 @@ const GroupSwitcher = ({ items, index, onSelect, children }: GroupSwitcherProps 
         return () => {
             isCancelled = true;
         };
-    }, [start, items]);
+    }, [index, items]);
 
     return (
         <div className="w-full max-w-[34rem] flex items-end gap-3">
@@ -55,7 +57,7 @@ const GroupSwitcher = ({ items, index, onSelect, children }: GroupSwitcherProps 
                 <div className="flex items-end justify-center gap-2 pt-5">
                     {visible.map((item, offset) => {
                         const itemIndex = start + offset;
-                        const preview = previews[getMetadataId(item) ?? ''];
+                        const preview = getCachedMetadata(getMetadataId(item));
                         return (
                             <div key={item.id} className="relative">
                                 {itemIndex === index && items.length > VISIBLE_COUNT && (
@@ -68,7 +70,7 @@ const GroupSwitcher = ({ items, index, onSelect, children }: GroupSwitcherProps 
                                     title={preview?.title || getMediaTitle(item)}
                                     className={`block w-10 aspect-[2/3] rounded overflow-hidden border-2 shadow-lg shadow-black/60 bg-gradient-to-br from-blue-900 to-purple-900 transition-all ${itemIndex === index ? 'border-white opacity-100 -translate-y-1' : 'border-transparent opacity-50 hover:opacity-90'}`}
                                 >
-                                    {preview?.posterUrl && <img src={preview.posterUrl} alt="" draggable={false} className="w-full h-full object-cover" />}
+                                    {preview?.posterUrlPreview && <img src={preview.posterUrlPreview} alt="" draggable={false} className="w-full h-full object-cover" />}
                                 </button>
                             </div>
                         );
